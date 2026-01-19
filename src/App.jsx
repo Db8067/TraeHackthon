@@ -8,6 +8,8 @@ import Threat from './pages/Threat';
 import Earthquake from './pages/Earthquake';
 import EmergencyDialer from './pages/EmergencyDialer';
 import DeviceSimulator from './pages/DeviceSimulator';
+import PreBook from './pages/PreBook';
+import ThankYou from './pages/ThankYou';
 
 function App() {
   return (
@@ -22,6 +24,8 @@ function App() {
           <Route path="/earthquake" element={<Earthquake />} />
           <Route path="/emergency-dialer" element={<EmergencyDialer />} />
           <Route path="/device-simulator" element={<DeviceSimulator />} />
+          <Route path="/pre-book" element={<PreBook />} />
+          <Route path="/thank-you" element={<ThankYou />} />
         </Routes>
       </div>
     </Router>

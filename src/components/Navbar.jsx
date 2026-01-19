@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ShieldAlert, Settings, Activity, Menu, X, Smartphone, Video, Phone, PlayCircle } from 'lucide-react';
+import { ShieldAlert, Settings, Activity, Menu, X, Smartphone, Video, Phone, PlayCircle, ShoppingBag } from 'lucide-react';
 import { clsx } from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -10,6 +10,7 @@ const Navbar = () => {
 
   const navItems = [
     { name: 'Home', path: '/', icon: ShieldAlert },
+    { name: 'Pre-Book', path: '/pre-book', icon: ShoppingBag, highlight: true },
     { name: 'Device Health', path: '/device-health', icon: Activity },
     { name: 'Threat', path: '/threat', icon: Video },
     { name: 'Earthquake', path: '/earthquake', icon: Activity },
@@ -42,10 +43,12 @@ const Navbar = () => {
                       'flex items-center px-3 py-2 rounded-full text-sm font-medium transition-all duration-200',
                       isActive
                         ? 'bg-medical-red text-white shadow-md shadow-red-900/20'
-                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                        : item.highlight 
+                            ? 'bg-white text-slate-900 hover:bg-slate-200' 
+                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                     )}
                   >
-                    <Icon className="w-4 h-4 mr-2" />
+                    <Icon className={`w-4 h-4 mr-2 ${item.highlight ? 'text-red-600' : ''}`} />
                     {item.name}
                   </Link>
                 );
