@@ -1,278 +1,283 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { motion, useScroll, useTransform, useSpring, useMotionValueEvent, AnimatePresence } from 'framer-motion';
-import { Play, Settings, ShieldCheck, Phone, Camera, Activity, Shield, Bell, Zap } from 'lucide-react';
+import { motion, useScroll, useTransform, useSpring, useMotionValueEvent, AnimatePresence, MotionValue } from 'framer-motion';
+import { Play, Settings, Twitter, Github, Linkedin, Disc, ChevronDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Preloader } from '../ui/Preloader';
 
-// --- Constants ---
-const FRAME_COUNT = 26;
-const IMAGE_PATH_PREFIX = '/io2/ezgif-frame-';
-const IMAGE_EXTENSION = '.jpg';
-
-// --- Hook: Image Preloader ---
-const useImagePreloader = () => {
-  const [loaded, setLoaded] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [images, setImages] = useState<HTMLImageElement[]>([]);
-
-  useEffect(() => {
-    let loadedCount = 0;
-    const imgArray: HTMLImageElement[] = [];
-
-    const updateProgress = () => {
-      loadedCount++;
-      const currentProgress = Math.round((loadedCount / FRAME_COUNT) * 100);
-      setProgress(currentProgress);
-      
-      if (loadedCount === FRAME_COUNT) {
-        setImages(imgArray);
-        setTimeout(() => setLoaded(true), 500);
-      }
-    };
-
-    const loadBatch = async (startIndex: number, batchSize: number) => {
-        for (let i = startIndex; i < Math.min(startIndex + batchSize, FRAME_COUNT + 1); i++) {
-             const img = new Image();
-             const paddedIndex = i.toString().padStart(3, '0');
-             img.src = `${IMAGE_PATH_PREFIX}${paddedIndex}${IMAGE_EXTENSION}`;
-             if (img.decode) { try { await img.decode(); } catch (e) {} }
-             imgArray[i-1] = img;
-             updateProgress();
-        }
-    };
-
-    const loadAll = async () => {
-         const batchSize = 5;
-         for (let i = 1; i <= FRAME_COUNT; i += batchSize) {
-             await loadBatch(i, batchSize);
-         }
-    };
-    loadAll();
-  }, []);
-
-  return { loaded, images, progress };
+// --- Component: WatermarkCover ---
+const WatermarkCover: React.FC = () => {
+    return (
+        <div className="absolute bottom-0 right-0 z-[100] pointer-events-none">
+            <div className="w-[180px] h-[80px] bg-[radial-gradient(circle_at_bottom_right,_#050505_60%,_transparent_100%)]"></div>
+            <div className="absolute bottom-4 right-4 text-[10px] font-mono tracking-widest text-white/20 select-none">
+                E-ResQ // MOBILE
+            </div>
+        </div>
+    );
 };
 
-// --- Component: Feature Item ---
-const FeatureItem: React.FC<{ icon: any, title: string, subtitle: string }> = ({ icon: Icon, title, subtitle }) => (
-    <div className="flex items-start gap-4 mb-6 last:mb-0">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/10 text-white border border-white/10">
-            <Icon className="h-6 w-6" />
-        </div>
-        <div>
-            <h3 className="font-bold text-white text-lg">{title}</h3>
-            <p className="text-sm text-white/60 leading-relaxed mt-1">{subtitle}</p>
-        </div>
-    </div>
-);
+// --- Helper: Playback-Smart Video Layer ---
+const VideoLayer = ({
+    src,
+    opacity,
+    zIndex,
+    className = "",
+    forcePlay = false,
+    objectPosition = "center",
+    onReady
+}: {
+    src: string;
+    opacity: MotionValue<number>;
+    zIndex: number;
+    className?: string;
+    forcePlay?: boolean;
+    objectPosition?: string;
+    onReady?: () => void;
+}) => {
+    const videoRef = useRef<HTMLVideoElement>(null);
 
-// --- Component: MobileDeviceScroll ---
-const MobileDeviceScroll: React.FC = () => {
-  const { loaded, images, progress } = useImagePreloader();
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const lastRenderedIndex = useRef<number>(-1);
+    // optimize performance: hide when opacity is 0
+    const display = useTransform(opacity, (v) => v <= 0.01 ? "none" : "block");
 
-  // Scroll Restoration Fix
-  useEffect(() => {
-    if ('scrollRestoration' in history) {
-      history.scrollRestoration = 'manual';
-    }
-    window.scrollTo(0, 0);
-  }, []);
+    // Smart Play/Pause Logic
+    useMotionValueEvent(opacity, "change", (latest) => {
+        const video = videoRef.current;
+        if (!video) return;
 
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ['start start', 'end end'],
-  });
+        if (latest > 0.01) {
+            if (video.paused) video.play().catch(() => { });
+        } else {
+            if (!video.paused) video.pause();
+        }
+    });
 
-  const smoothProgress = useSpring(scrollYProgress, {
-    stiffness: 100,
-    damping: 30,
-    restDelta: 0.001,
-  });
+    // Force Play Effect
+    useEffect(() => {
+        if (forcePlay && videoRef.current) {
+            videoRef.current.play().catch(() => { });
+        }
+    }, [forcePlay]);
 
-  const frameIndex = useTransform(smoothProgress, [0, 1], [0, FRAME_COUNT - 1]);
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.1], [1, 0]);
-  const heroScale = useTransform(scrollYProgress, [0, 0.1], [1, 0.9]);
-
-  // --- Rendering Logic (Big & Centered) ---
-  const renderFrame = (index: number) => {
-    const canvas = canvasRef.current;
-    if (!canvas || !images.length) return;
-    const ctx = canvas.getContext('2d', { alpha: false });
-    if (!ctx) return;
-
-    const imgIndex = Math.round(index);
-    const clampedIndex = Math.min(Math.max(imgIndex, 0), images.length - 1);
-    
-    if (clampedIndex === lastRenderedIndex.current) return;
-    const img = images[clampedIndex];
-    if (!img) return;
-
-    const dpr = window.devicePixelRatio || 1;
-    if (canvas.width !== window.innerWidth * dpr || canvas.height !== window.innerHeight * dpr) {
-        canvas.width = window.innerWidth * dpr;
-        canvas.height = window.innerHeight * dpr;
-        ctx.scale(dpr, dpr);
-    }
-
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    
-    // BIG & CENTERED Logic
-    const scale = (h / img.height) * 0.85; 
-    const drawWidth = img.width * scale;
-    const drawHeight = img.height * scale;
-    const offsetX = (w - drawWidth) / 2 + (w * 0.15);
-    const offsetY = (h - drawHeight) / 2;
-
-    ctx.fillStyle = '#050505';
-    ctx.fillRect(0, 0, w, h);
-    ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
-
-    lastRenderedIndex.current = clampedIndex;
-  };
-
-  useMotionValueEvent(frameIndex, "change", (latest) => {
-    if (loaded) requestAnimationFrame(() => renderFrame(latest));
-  });
-
-  useEffect(() => {
-    if (loaded) {
-        renderFrame(0);
-        const handleResize = () => renderFrame(frameIndex.get());
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }
-  }, [loaded, images]);
-
-  return (
-    <>
-      <AnimatePresence>
-        {!loaded && <Preloader progress={progress} />}
-      </AnimatePresence>
-
-      <div ref={containerRef} className="relative bg-[#050505] min-h-[300vh]">
-        
-        {/* 1. Fixed Canvas Background */}
-        <canvas
-          ref={canvasRef}
-          className="fixed top-0 left-0 w-full h-full z-0 pointer-events-none"
-        />
-
-        {/* 2. Fixed Hero Title (Fades out) */}
-        <motion.div 
-            style={{ opacity: heroOpacity, scale: heroScale }}
-            className="fixed top-0 left-0 w-full h-[60vh] flex flex-col items-center justify-center z-10 pointer-events-none text-center px-6"
+    return (
+        <motion.div
+            style={{ opacity, display, zIndex }}
+            className={`absolute inset-0 w-full h-full ${className}`}
         >
-             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/10 mb-6 backdrop-blur-md">
-                <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                </span>
-                <span className="text-[10px] font-bold tracking-widest uppercase text-white/80">System Online</span>
-            </div>
-            <h1 className="text-6xl font-bold tracking-tighter text-white leading-none">
-                E-ResQ
-            </h1>
-            <p className="text-xl font-medium text-white/60 mt-2 tracking-tight">
-                Guardian.
-            </p>
+            <video
+                ref={videoRef}
+                src={src}
+                muted
+                loop
+                playsInline
+                style={{ objectPosition }} // Custom positioning
+                className="w-full h-full object-cover"
+                onCanPlay={onReady} // Notify parent when ready
+            />
         </motion.div>
+    );
+};
 
-        {/* 3. Scrollable Bottom Sheet */}
-        <div className="relative z-20 pt-[65vh]">
-            <div className="bg-black/80 backdrop-blur-xl border-t border-white/10 rounded-t-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.5)] min-h-screen pb-32">
-                
-                {/* Sheet Handle */}
-                <div className="w-full flex justify-center pt-4 pb-8">
-                    <div className="w-12 h-1.5 rounded-full bg-white/20"></div>
-                </div>
+// --- Hook: Smart Preloader ---
+// Loads to 90%, then waits for isReady=true to finish
+const useSmartPreloader = (isReady: boolean) => {
+    const [loaded, setLoaded] = useState(false);
+    const [progress, setProgress] = useState(0);
 
-                <div className="px-6 space-y-12">
-                    
-                    {/* Intro Text */}
-                    <div className="text-center space-y-4">
-                        <h2 className="text-3xl font-bold text-white tracking-tight">Total Protection</h2>
-                        <p className="text-white/60 leading-relaxed">
-                            The ultimate digital companion for your physical safety device. Rugged hardware meets cloud intelligence.
-                        </p>
-                         <div className="grid grid-cols-2 gap-3 pt-4">
-                            <Link to="/device-simulator" className="flex items-center justify-center gap-2 rounded-xl bg-white/10 py-3 text-sm font-bold text-white border border-white/10">
-                                <Play className="w-4 h-4" /> Simulator
-                            </Link>
-                            <Link to="/pre-book" className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-bold text-white shadow-lg shadow-blue-900/30">
-                                <Settings className="w-4 h-4" /> Pre-Book
-                            </Link>
-                        </div>
-                    </div>
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setProgress((prev) => {
+                // If not ready, stall at 90%
+                if (!isReady && prev >= 90) {
+                    return 90;
+                }
+                // If ready, go to 100% and finish
+                if (prev >= 100) {
+                    clearInterval(interval);
+                    setTimeout(() => setLoaded(true), 500);
+                    return 100;
+                }
+                return prev + 2;
+            });
+        }, 20); // Slightly faster base load
+        return () => clearInterval(interval);
+    }, [isReady]);
 
-                    {/* Bento Grid: Durability */}
-                    <div className="bg-white/5 border border-white/10 rounded-3xl p-6 flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center border border-white/10">
-                            <ShieldCheck className="h-6 w-6 text-white" />
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-white text-lg">Military Grade</h3>
-                            <p className="text-sm text-white/50">IP68 Water & Shock Resistant</p>
-                        </div>
-                    </div>
+    return { loaded, progress };
+};
 
-                    {/* Bento Grid: Monitoring */}
-                    <div className="bg-white/5 border border-white/10 rounded-3xl p-6 text-center relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-4 opacity-20">
-                            <Zap className="h-24 w-24 text-blue-500" />
+const MobileDeviceScroll: React.FC = () => {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [heroReady, setHeroReady] = useState(false);
+    const { loaded, progress } = useSmartPreloader(heroReady);
+
+    const { scrollYProgress } = useScroll({ target: containerRef, offset: ['start start', 'end end'] });
+    const smoothProgress = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
+
+    // --- Transform Logic (6 Stages - Exact Match to Desktop) ---
+    const heroOpacity = useTransform(smoothProgress, [0.12, 0.18], [1, 0]);
+    const trans2Opacity = useTransform(smoothProgress, [0.12, 0.18, 0.29, 0.35], [0, 1, 1, 0]);
+    const trans3Opacity = useTransform(smoothProgress, [0.29, 0.35, 0.45, 0.51], [0, 1, 1, 0]);
+    const trans4Opacity = useTransform(smoothProgress, [0.45, 0.51, 0.61, 0.67], [0, 1, 1, 0]);
+    const trans5Opacity = useTransform(smoothProgress, [0.61, 0.67, 0.77, 0.83], [0, 1, 1, 0]);
+    const footerOpacity = useTransform(smoothProgress, [0.77, 0.83], [0, 1]);
+
+    // --- UI Opacity Logic ---
+    const heroUIOpacity = useTransform(smoothProgress, [0, 0.07, 0.08, 0.15, 0.18], [0, 0, 1, 1, 0]);
+    const heroPointerEvents = useTransform(smoothProgress, (v) => (v > 0.07 && v < 0.18) ? 'auto' : 'none');
+
+    const footerUIOpacity = useTransform(smoothProgress, [0.85, 0.9], [0, 1]);
+    const footerPointerEvents = useTransform(smoothProgress, (v) => v > 0.85 ? 'auto' : 'none');
+
+    return (
+        <>
+            <AnimatePresence>
+                {!loaded && <Preloader progress={progress} />}
+            </AnimatePresence>
+
+            <div ref={containerRef} className="relative h-[600vh] bg-[#050505]">
+
+                <div className="sticky top-0 h-screen w-full overflow-hidden">
+
+                    {/* --- VIDEO STACK WITH CUSTOM SHIFTS --- */}
+                    {/* Hero: Passes onReady to unlock preloader */}
+                    <VideoLayer
+                        src="/hero%20section.mp4"
+                        opacity={heroOpacity}
+                        zIndex={60}
+                        forcePlay={true} // Always try to play
+                        objectPosition="center"
+                        onReady={() => setHeroReady(true)}
+                    />
+
+                    {/* Trans2: Shift Left (25%) */}
+                    <VideoLayer src="/trans2.mp4" opacity={trans2Opacity} zIndex={50} objectPosition="25% 50%" />
+
+                    {/* Trans3: Shift Right (60% - Little bit right) */}
+                    <VideoLayer src="/trans3.mp4" opacity={trans3Opacity} zIndex={40} objectPosition="60% 50%" />
+
+                    {/* Trans4: Shift Left (35% - Little bit left) */}
+                    <VideoLayer src="/trans4.mp4" opacity={trans4Opacity} zIndex={30} objectPosition="35% 50%" />
+
+                    {/* Trans5: Shift Left (25%) */}
+                    <VideoLayer src="/trans5.mp4" opacity={trans5Opacity} zIndex={20} objectPosition="25% 50%" />
+
+                    {/* Footer: Slight Left (40%) */}
+                    <VideoLayer src="/fotterbg.mp4" opacity={footerOpacity} zIndex={10} objectPosition="40% 50%" />
+
+
+                    {/* --- OVERLAYS --- */}
+                    <WatermarkCover />
+
+                    {/* 1. MOBILE HERO UI */}
+                    <motion.div
+                        style={{ opacity: heroUIOpacity, pointerEvents: heroPointerEvents }}
+                        className="absolute inset-0 z-[70] flex flex-col items-center justify-center p-6 text-center"
+                    >
+                        {/* Gradient Backdrop */}
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <div className="w-full h-full bg-gradient-to-b from-black/80 via-transparent to-black/80" />
                         </div>
-                        <div className="relative z-10 flex flex-col items-center">
-                            <div className="h-14 w-14 rounded-full bg-blue-500/20 flex items-center justify-center mb-4 border border-blue-500/30">
-                                <Activity className="h-7 w-7 text-blue-400 animate-pulse" />
-                            </div>
-                            <h3 className="font-bold text-white text-xl">Always Ready</h3>
-                            <p className="text-sm text-white/50 mt-2">
-                                24/7 Threat Monitoring active even when you sleep.
+
+                        <div className="relative z-10 w-full max-w-sm">
+                            <h1 className="text-4xl font-bold tracking-tighter text-white mb-4 drop-shadow-2xl">
+                                E-ResQ device for <br />
+                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-white">
+                                    Residential
+                                </span>
+                            </h1>
+                            <p className="text-lg text-white/80 font-light mb-8 drop-shadow-lg">
+                                One device. Total protection.
                             </p>
-                        </div>
-                    </div>
 
-                    {/* Features List */}
-                    <div className="space-y-6">
-                        <h3 className="text-sm font-bold uppercase tracking-widest text-white/40 border-b border-white/10 pb-2">Core Systems</h3>
-                        <FeatureItem icon={Phone} title="Instant Dispatch" subtitle="Direct uplink to emergency services." />
-                        <FeatureItem icon={Camera} title="AI Threat Cam" subtitle="Computer vision detects weapons." />
-                        <FeatureItem icon={Activity} title="Seismic Sensor" subtitle="Earthquake warnings seconds before." />
-                    </div>
-
-                     {/* Process Steps (Horizontal Scroll) */}
-                     <div className="flex gap-4 overflow-x-auto pb-4 -mx-6 px-6 no-scrollbar">
-                        {[
-                            { icon: Activity, title: "1. Detect", desc: "24/7 Monitoring" },
-                            { icon: Bell, title: "2. Alert", desc: "Cloud Notify" },
-                            { icon: Shield, title: "3. Secure", desc: "Dispatch Sent" }
-                        ].map((step, i) => (
-                            <div key={i} className="min-w-[140px] bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
-                                <step.icon className="h-8 w-8 mx-auto text-white/80 mb-3" />
-                                <div className="font-bold text-white">{step.title}</div>
-                                <div className="text-xs text-white/50">{step.desc}</div>
+                            <div className="flex flex-col gap-3 pointer-events-auto">
+                                <Link
+                                    to="/device-simulator"
+                                    className="flex items-center justify-center gap-3 bg-white text-black px-6 py-4 rounded-full font-bold shadow-lg"
+                                >
+                                    <Play className="fill-black h-4 w-4" />
+                                    Launch Simulator
+                                </Link>
+                                <Link
+                                    to="/pre-book"
+                                    className="flex items-center justify-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 text-white px-6 py-4 rounded-full font-bold"
+                                >
+                                    <Settings className="h-4 w-4" />
+                                    Pre-Book Unit
+                                </Link>
                             </div>
-                        ))}
-                     </div>
 
-                    {/* Final CTA */}
-                    <div className="bg-gradient-to-br from-blue-900 to-black p-8 rounded-3xl border border-white/10 shadow-2xl text-center">
-                        <ShieldCheck className="w-12 h-12 text-blue-400 mx-auto mb-4" />
-                        <h2 className="text-2xl font-bold text-white mb-2">Secure Your Home</h2>
-                        <Link to="/pre-book" className="block w-full py-3 mt-6 rounded-xl bg-white text-black font-bold hover:scale-[1.02] transition-transform">
-                            Pre-Book Now
-                        </Link>
-                    </div>
+                            <div className="mt-10 flex items-center justify-center gap-4 opacity-80">
+                                <div className="text-center">
+                                    <p className="font-bold text-white text-2xl">2,000+</p>
+                                    <p className="text-xs text-white/60">Families Protected</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Scroll Down Indicator */}
+                        <motion.div
+                            className="absolute bottom-12 left-0 right-0 flex justify-center text-white/50"
+                            animate={{ y: [0, 10, 0] }}
+                            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                        >
+                            <div className="flex flex-col items-center gap-1">
+                                <span className="text-[10px] tracking-widest uppercase">Scroll Down</span>
+                                <ChevronDown className="w-5 h-5" />
+                            </div>
+                        </motion.div>
+                    </motion.div>
+
+                    {/* 6. MOBILE FOOTER UI */}
+                    <motion.div
+                        style={{ opacity: footerUIOpacity, pointerEvents: footerPointerEvents }}
+                        className="absolute inset-x-0 bottom-0 z-[70] h-[80vh] flex flex-col justify-end pb-28 p-6" // Increased pb-28 to clear watermark
+                    >
+                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none" />
+
+                        <div className="relative z-10 w-full space-y-8 text-white/80">
+                            <div>
+                                <h3 className="text-2xl font-bold text-white mb-2 flex items-center gap-2">
+                                    <Disc className="animate-spin-slow h-5 w-5 text-blue-500" /> E-ResQ
+                                </h3>
+                                <p className="text-sm text-white/50 leading-relaxed">
+                                    Hybrid defense system. Neural cloud intelligence.
+                                </p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-8">
+                                <div>
+                                    <h4 className="font-bold text-white mb-4 uppercase text-xs tracking-wider">Product</h4>
+                                    <ul className="space-y-3 text-sm text-white/60">
+                                        <li>Features</li>
+                                        <li>Simulator</li>
+                                        <li>Safety Specs</li>
+                                        <li>Pricing</li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-white mb-4 uppercase text-xs tracking-wider">Connect</h4>
+                                    <div className="flex gap-3">
+                                        <div className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center"><Twitter className="h-4 w-4" /></div>
+                                        <div className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center"><Github className="h-4 w-4" /></div>
+                                        <div className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center"><Linkedin className="h-4 w-4" /></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="pt-6 border-t border-white/10 flex flex-col gap-4 text-xs text-white/30 text-center">
+                                <p>© 2026 E-ResQ Inc.</p>
+                                <div className="flex justify-center gap-6">
+                                    <span>Privacy</span>
+                                    <span>Terms</span>
+                                </div>
+                            </div>
+                        </div>
+                    </motion.div>
 
                 </div>
             </div>
-        </div>
-      </div>
-    </>
-  );
+        </>
+    );
 };
 
 export default MobileDeviceScroll;
