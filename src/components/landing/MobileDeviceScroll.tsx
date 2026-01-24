@@ -58,6 +58,13 @@ const VideoLayer = ({
         }
     }, [forcePlay]);
 
+    // Check availability on mount
+    useEffect(() => {
+        if (videoRef.current && videoRef.current.readyState >= 3) {
+            onReady?.();
+        }
+    }, []);
+
     return (
         <motion.div
             style={{ opacity, display, zIndex }}
@@ -112,6 +119,13 @@ const useSimulatedPreloader = (videoReady: boolean) => {
 const MobileDeviceScroll: React.FC = () => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [heroReady, setHeroReady] = useState(false); // Track real video load status
+
+    // Safety Timeout: Force ready after 4s (prevents getting stuck)
+    useEffect(() => {
+        const timer = setTimeout(() => setHeroReady(true), 4000);
+        return () => clearTimeout(timer);
+    }, []);
+
     const { loaded, progress } = useSimulatedPreloader(heroReady);
 
     const { scrollYProgress } = useScroll({ target: containerRef, offset: ['start start', 'end end'] });
