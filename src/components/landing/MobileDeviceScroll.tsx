@@ -65,10 +65,22 @@ const VideoLayer = ({
     // Minimal display logic: Only hide if NOT alwaysVisible and fully transparent
     const display = useTransform(opacity, (v) => (alwaysVisible || v > 0.01) ? "block" : "none");
 
-    // Check availability on mount (if cached)
+    // Check availability on mount (if cached) and force play
     useEffect(() => {
-        if (videoRef.current && videoRef.current.readyState >= 3) {
-            onReady?.();
+        const video = videoRef.current;
+        if (video) {
+            if (video.readyState >= 3) {
+                onReady?.();
+            }
+            
+            // Force play attempt
+            const playPromise = video.play();
+            if (playPromise !== undefined) {
+                playPromise.catch((error) => {
+                    console.warn("Auto-play was prevented:", error);
+                    // Retry on interaction if needed, but for muted it should work
+                });
+            }
         }
     }, [onReady]);
 
@@ -84,6 +96,8 @@ const VideoLayer = ({
                 loop
                 autoPlay
                 playsInline
+                webkit-playsinline="true"
+                controls={false}
                 preload="auto"
                 // Performance: Signal when enough data is loaded to play
                 onLoadedData={() => onReady?.()}
