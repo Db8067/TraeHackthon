@@ -1,8 +1,35 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { motion, useScroll, useTransform, useSpring, useMotionValueEvent, AnimatePresence, MotionValue } from 'framer-motion';
+import { motion, useScroll, useTransform, useSpring, AnimatePresence } from 'framer-motion';
+import type { MotionValue } from 'framer-motion';
 import { Play, Settings, Twitter, Github, Linkedin, Disc, ChevronDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Preloader } from '../ui/Preloader';
+
+// --- Component: Gaming Loading Fallback ---
+const GamingTextFallback = () => {
+    return (
+        <div className="absolute inset-0 z-[55] flex items-center justify-center bg-black">
+            <div className="flex flex-col items-center gap-4">
+                <div className="relative">
+                    <p className="text-green-500 font-mono text-xl tracking-widest animate-pulse">
+                        &gt; SYSTEM_LOADING...
+                    </p>
+                    <p className="text-green-500/50 font-mono text-xs mt-2 text-center">
+                        INITIALIZING VIDEO DRIVERS
+                    </p>
+                </div>
+                {/* Glitch bar */}
+                <div className="w-48 h-1 bg-green-900 overflow-hidden relative">
+                    <motion.div
+                        className="absolute inset-y-0 left-0 bg-green-500 w-full"
+                        animate={{ x: ['-100%', '100%'] }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+                    />
+                </div>
+            </div>
+        </div>
+    );
+};
 
 // --- Component: WatermarkCover ---
 const WatermarkCover: React.FC = () => {
@@ -22,51 +49,29 @@ const VideoLayer = ({
     opacity,
     zIndex,
     className = "",
-    forcePlay = false,
     objectPosition = "center",
     onReady,
-    alwaysVisible = false // NEW: crucial for hero video
+    alwaysVisible = false
 }: {
     src: string;
     opacity: MotionValue<number>;
     zIndex: number;
     className?: string;
-    forcePlay?: boolean;
     objectPosition?: string;
     onReady?: () => void;
     alwaysVisible?: boolean;
 }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
 
-    // optimize performance: hide when opacity is 0 (UNLESS alwaysVisible is true)
-    // This prevents the browser from discarding the video frame when it's technically "hidden" by the preloader
+    // Minimal display logic: Only hide if NOT alwaysVisible and fully transparent
     const display = useTransform(opacity, (v) => (alwaysVisible || v > 0.01) ? "block" : "none");
-
-    // Smart Play/Pause Logic
-    useMotionValueEvent(opacity, "change", (latest) => {
-        const video = videoRef.current;
-        if (!video) return;
-
-        if (latest > 0.01 || alwaysVisible) {
-            if (video.paused) video.play().catch(() => { });
-        } else {
-            if (!video.paused) video.pause();
-        }
-    });
-
-    // Force Play Effect
-    useEffect(() => {
-        if (forcePlay && videoRef.current) {
-            videoRef.current.play().catch(() => { });
-        }
-    }, [forcePlay]);
 
     // Check availability on mount (if cached)
     useEffect(() => {
         if (videoRef.current && videoRef.current.readyState >= 3) {
             onReady?.();
         }
-    }, []);
+    }, [onReady]);
 
     return (
         <motion.div
@@ -78,45 +83,38 @@ const VideoLayer = ({
                 src={src}
                 muted
                 loop
-                autoPlay // Explicitly request autoplay
+                autoPlay
                 playsInline
-                preload="auto" // Aggressive loading
+                preload="auto"
                 // Performance: Signal when enough data is loaded to play
                 onLoadedData={() => onReady?.()}
-                // Fallback: Signal on mount if already cached/ready
                 onCanPlay={() => onReady?.()}
-                style={{ objectPosition }} // Custom positioning
+                onPlaying={() => onReady?.()} // Extra signal
+                style={{ objectPosition }}
                 className="w-full h-full object-cover"
             />
         </motion.div>
     );
 };
 
-// --- Hook: Simulated Preloader ---
-const useSimulatedPreloader = (videoReady: boolean) => {
+// --- Hook: Simulated Preloader (Decoupled) ---
+const useSimulatedPreloader = () => {
     const [loaded, setLoaded] = useState(false);
     const [progress, setProgress] = useState(0);
 
     useEffect(() => {
         const interval = setInterval(() => {
             setProgress((prev) => {
-                if (prev >= 95) {
-                    // Check if video is truly ready before completing 100%
-                    if (videoReady) {
-                        if (prev >= 100) {
-                            clearInterval(interval);
-                            setTimeout(() => setLoaded(true), 500);
-                            return 100;
-                        }
-                        return prev + 1; // Finish smoothly
-                    }
-                    return 95; // Wait at 95% for video
+                if (prev >= 100) {
+                    clearInterval(interval);
+                    setTimeout(() => setLoaded(true), 500);
+                    return 100;
                 }
-                return prev + 2; // Normal progress
+                return prev + 2;
             });
         }, 30);
         return () => clearInterval(interval);
-    }, [videoReady]);
+    }, []);
 
     return { loaded, progress };
 };
@@ -124,14 +122,7 @@ const useSimulatedPreloader = (videoReady: boolean) => {
 const MobileDeviceScroll: React.FC = () => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [heroReady, setHeroReady] = useState(false); // Track real video load status
-
-    // Safety Timeout: Force ready after 4s (prevents getting stuck)
-    useEffect(() => {
-        const timer = setTimeout(() => setHeroReady(true), 4000);
-        return () => clearTimeout(timer);
-    }, []);
-
-    const { loaded, progress } = useSimulatedPreloader(heroReady);
+    const { loaded, progress } = useSimulatedPreloader(); // Standard timer, no waiting
 
     const { scrollYProgress } = useScroll({ target: containerRef, offset: ['start start', 'end end'] });
     const smoothProgress = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
@@ -161,13 +152,17 @@ const MobileDeviceScroll: React.FC = () => {
 
                 <div className="sticky top-0 h-screen w-full overflow-hidden">
 
+                    {/* Fallback Layer: Show if Hero video is NOT ready */}
+                    <AnimatePresence>
+                        {!heroReady && <GamingTextFallback />}
+                    </AnimatePresence>
+
                     {/* --- VIDEO STACK WITH CUSTOM SHIFTS --- */}
                     {/* Hero: ALWAYS VISIBLE */}
                     <VideoLayer
                         src="/hero%20section.mp4"
                         opacity={heroOpacity}
                         zIndex={60}
-                        forcePlay={loaded}
                         objectPosition="center"
                         onReady={() => setHeroReady(true)}
                         alwaysVisible={true}
