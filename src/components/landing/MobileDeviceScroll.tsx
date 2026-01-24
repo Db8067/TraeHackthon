@@ -1,29 +1,53 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, useScroll, useTransform, useSpring, AnimatePresence } from 'framer-motion';
 import type { MotionValue } from 'framer-motion';
-import { Play, Settings, Twitter, Github, Linkedin, Disc, ChevronDown } from 'lucide-react';
+import { Play, Settings, Twitter, Github, Linkedin, Disc, ChevronDown, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Preloader } from '../ui/Preloader';
 
-// --- Component: Gaming Loading Fallback ---
+// --- Component: Enhanced Loading Fallback (Blue Theme) ---
 const GamingTextFallback = () => {
     return (
-        <div className="absolute inset-0 z-[55] flex items-center justify-center bg-black">
-            <div className="flex flex-col items-center gap-4">
-                <div className="relative">
-                    <p className="text-green-500 font-mono text-xl tracking-widest animate-pulse">
-                        &gt; SYSTEM_LOADING...
+        <div className="absolute inset-0 z-[80] flex items-center justify-center bg-black">
+            <div className="flex flex-col items-center gap-6">
+                <div className="relative flex flex-col items-center">
+                    {/* Animated Shield Icon */}
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.5, repeat: Infinity, repeatType: "reverse" }}
+                        className="mb-4"
+                    >
+                        <ShieldCheck className="w-12 h-12 text-blue-500" />
+                    </motion.div>
+
+                    <p className="text-blue-400 font-mono text-xl tracking-[0.2em] font-bold">
+                        SYSTEM INITIALIZING
                     </p>
-                    <p className="text-green-500/50 font-mono text-xs mt-2 text-center">
-                        INITIALIZING VIDEO DRIVERS
+
+                    {/* Animated Dots */}
+                    <motion.div
+                        className="flex gap-1 mt-2"
+                        initial={{ opacity: 0.5 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 1, repeat: Infinity }}
+                    >
+                        <span className="w-1 h-1 bg-blue-500 rounded-full" />
+                        <span className="w-1 h-1 bg-blue-500 rounded-full" />
+                        <span className="w-1 h-1 bg-blue-500 rounded-full" />
+                    </motion.div>
+
+                    <p className="text-blue-500/40 font-mono text-[10px] mt-3 uppercase tracking-widest">
+                        Establishing Secure Link...
                     </p>
                 </div>
-                {/* Glitch bar */}
-                <div className="w-48 h-1 bg-green-900 overflow-hidden relative">
+
+                {/* Scanning Bar Effect */}
+                <div className="w-64 h-[2px] bg-blue-900/30 overflow-hidden relative rounded-full">
                     <motion.div
-                        className="absolute inset-y-0 left-0 bg-green-500 w-full"
-                        animate={{ x: ['-100%', '100%'] }}
-                        transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+                        className="absolute inset-y-0 left-0 bg-gradient-to-r from-transparent via-blue-500 to-transparent w-1/2"
+                        animate={{ x: ['-100%', '200%'] }}
+                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
                     />
                 </div>
             </div>
@@ -76,7 +100,7 @@ const VideoLayer = ({
     return (
         <motion.div
             style={{ opacity, display, zIndex }}
-            className={`absolute inset-0 w-full h-full ${className}`}
+            className={`absolute inset-0 w-full h-full pointer-events-none ${className}`} // ADDED pointer-events-none
         >
             <video
                 ref={videoRef}
@@ -86,10 +110,11 @@ const VideoLayer = ({
                 autoPlay
                 playsInline
                 preload="auto"
+                disablePictureInPicture // Prevent PiP button
                 // Performance: Signal when enough data is loaded to play
                 onLoadedData={() => onReady?.()}
                 onCanPlay={() => onReady?.()}
-                onPlaying={() => onReady?.()} // Extra signal
+                onPlaying={() => onReady?.()}
                 style={{ objectPosition }}
                 className="w-full h-full object-cover"
             />
