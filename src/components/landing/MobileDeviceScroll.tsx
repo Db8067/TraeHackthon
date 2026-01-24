@@ -87,8 +87,19 @@ const VideoLayer = ({
     return (
         <motion.div
             style={{ opacity, display, zIndex }}
-            className={`absolute inset-0 w-full h-full ${className}`}
+            className={`absolute inset-0 w-full h-full ${className} pointer-events-none`}
         >
+            <style>
+                {`
+                video::-webkit-media-controls {
+                    display: none !important;
+                }
+                video::-webkit-media-controls-start-playback-button {
+                    display: none !important;
+                    -webkit-appearance: none;
+                }
+                `}
+            </style>
             <video
                 ref={videoRef}
                 src={src}
@@ -104,7 +115,7 @@ const VideoLayer = ({
                 onCanPlay={() => onReady?.()}
                 onPlaying={() => onReady?.()} // Extra signal
                 style={{ objectPosition }}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover pointer-events-none"
             />
         </motion.div>
     );
