@@ -23,7 +23,8 @@ const VideoLayer = ({
     zIndex,
     className = "",
     forcePlay = false,
-    objectPosition = "center"
+    objectPosition = "center",
+    onReady
 }: {
     src: string;
     opacity: MotionValue<number>;
@@ -31,6 +32,7 @@ const VideoLayer = ({
     className?: string;
     forcePlay?: boolean;
     objectPosition?: string;
+    onReady?: () => void;
 }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -67,6 +69,10 @@ const VideoLayer = ({
                 muted
                 loop
                 playsInline
+                // Performance: Signal when enough data is loaded to play
+                onLoadedData={() => onReady?.()}
+                // Fallback: Signal on mount if already cached/ready (rare but possible)
+                onCanPlay={() => onReady?.()}
                 style={{ objectPosition }} // Custom positioning
                 className="w-full h-full object-cover"
             />
@@ -75,30 +81,38 @@ const VideoLayer = ({
 };
 
 // --- Hook: Simulated Preloader ---
-const useSimulatedPreloader = () => {
+const useSimulatedPreloader = (videoReady: boolean) => {
     const [loaded, setLoaded] = useState(false);
     const [progress, setProgress] = useState(0);
 
     useEffect(() => {
         const interval = setInterval(() => {
             setProgress((prev) => {
-                if (prev >= 100) {
-                    clearInterval(interval);
-                    setTimeout(() => setLoaded(true), 500);
-                    return 100;
+                if (prev >= 95) {
+                    // Check if video is truly ready before completing 100%
+                    if (videoReady) {
+                        if (prev >= 100) {
+                            clearInterval(interval);
+                            setTimeout(() => setLoaded(true), 500);
+                            return 100;
+                        }
+                        return prev + 1; // Finish smoothly
+                    }
+                    return 95; // Wait at 95% for video
                 }
-                return prev + 2;
+                return prev + 2; // Normal progress
             });
         }, 30);
         return () => clearInterval(interval);
-    }, []);
+    }, [videoReady]);
 
     return { loaded, progress };
 };
 
 const MobileDeviceScroll: React.FC = () => {
     const containerRef = useRef<HTMLDivElement>(null);
-    const { loaded, progress } = useSimulatedPreloader();
+    const [heroReady, setHeroReady] = useState(false); // Track real video load status
+    const { loaded, progress } = useSimulatedPreloader(heroReady);
 
     const { scrollYProgress } = useScroll({ target: containerRef, offset: ['start start', 'end end'] });
     const smoothProgress = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
@@ -129,7 +143,15 @@ const MobileDeviceScroll: React.FC = () => {
                 <div className="sticky top-0 h-screen w-full overflow-hidden">
 
                     {/* --- VIDEO STACK WITH CUSTOM SHIFTS --- */}
-                    <VideoLayer src="/hero%20section.mp4" opacity={heroOpacity} zIndex={60} forcePlay={loaded} objectPosition="center" />
+                    {/* Pass onReady to signal when Hero video is buffered */}
+                    <VideoLayer
+                        src="/hero%20section.mp4"
+                        opacity={heroOpacity}
+                        zIndex={60}
+                        forcePlay={loaded}
+                        objectPosition="center"
+                        onReady={() => setHeroReady(true)}
+                    />
 
                     {/* Trans2: Shift Left (25%) */}
                     <VideoLayer src="/trans2.mp4" opacity={trans2Opacity} zIndex={50} objectPosition="25% 50%" />
