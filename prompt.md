@@ -1,63 +1,56 @@
-# PRODUCT REQUIREMENTS DOCUMENT (PRD): "Apple-Level" UI Overhaul
+# PRODUCT REQUIREMENTS DOCUMENT (PRD): The "6-Stage" Video Scroll Engine
 
-## 1. THE MISSION: "INSANE" UI TRANSFORMATION
-**Goal:** Rebuild the entire UI wrapper of the website to match the quality of `apple.com/airpods` while keeping the core "Scrollytelling" engine intact.
-**Theme:** "Stealth Luxury." Pure Black (`#050505`), White Text, Titanium Accents.
-**Constraint:** You MUST maintain the **Split Architecture** (`DeviceScroll` for Laptop vs. `MobileDeviceScroll` for Phone). Do NOT touch the underlying Canvas/Image logic. Only change the UI overlays, Headers, and Components.
+## 1. SCOPE: `DeviceScroll.tsx` (Desktop Only)
+**Critical Rule:** We are **DELETING** the Image Frame/Canvas logic from the Desktop component.
+* **New Engine:** A pure "Video Stack" implementation.
+* **Mobile:** Do NOT touch `MobileDeviceScroll.tsx`. It stays as is.
 
-## 2. DESIGN SYSTEM (Apple-Inspired Logic)
-* **Typography:** Use **Inter** (tight tracking).
-    * *Hero:* `text-7xl font-semibold tracking-tighter`.
-    * *Sub:* `text-xl text-white/60 font-medium`.
-* **Glassmorphism 2.0:** All floating elements (Header, Cards, Bottom Sheets) must use:
-    * `bg-black/40 backdrop-blur-xl border border-white/10 shadow-2xl`.
-* **"Bento" Grids:** Feature sections (like "Threat Cam", "SOS") should use a rounded-3xl grid layout, similar to Apple's feature comparison blocks.
+## 2. THE ARCHITECTURE: 6-VIDEO STACK
+Instead of drawing images, we will have 6 video elements stacked on top of each other. Their `opacity` will be controlled by `useScroll` to create smooth, cinematic crossfades.
 
-## 3. GLOBAL COMPONENTS
+### Asset Manifest (Scan these folders)
+1.  **Hero:** `public/hero section/` (Video 1)
+2.  **Trans 2:** `public/trans2/` (Video 2)
+3.  **Trans 3:** `public/trans3/` (Video 3)
+4.  **Trans 4:** `public/trans4/` (Video 4)
+5.  **Trans 5:** `public/trans5/` (Video 5)
+6.  **Footer:** `public/footerbg/` (Video 6)
 
-### A. The "Dynamic Island" Header
-* **Concept:** Instead of a boring fixed bar, create a **Floating Capsule Header**.
-* **Behavior:**
-    * **Desktop:** A pill-shaped glass bar centered at the top (`top-6`). Contains: Logo (Left), Nav Links (Center), "Pre-Book" (Right).
-    * **Mobile:** A bottom-dock glass bar (like iOS App Switcher) containing essential actions.
-* **Animation:** It expands/contracts on scroll.
+## 3. SCROLL MAPPING & LOGIC
+Map `scrollYProgress` (0 to 1) to the opacity of these videos.
+* **Logic:** As one range ends, the previous video fades out (Opacity 1->0) and the next fades in (Opacity 0->1).
 
-### B. The Logo (New Identity)
-* **Concept:** **"The Guardian Pulse"**.
-* **Visual:** A minimalist **Shield** outline intersected by a **Heartbeat (ECG) Line**.
-* **Implementation:** Use an SVG icon (Lucide `ShieldAlert` combined with `Activity` or custom SVG).
-* **Animation:** The "Pulse" line should glow/animate subtly every 3 seconds.
+| Video | Source Folder | Scroll Range | Z-Index | UI Overlay |
+| :--- | :--- | :--- | :--- | :--- |
+| **1. Hero** | `hero section` | **0% - 15%** | 60 | Existing Hero UI (Centered) |
+| **2. Trans 2** | `trans2` | **15% - 32%** | 50 | None (Clean Video) |
+| **3. Trans 3** | `trans3` | **32% - 48%** | 40 | None (Clean Video) |
+| **4. Trans 4** | `trans4` | **48% - 64%** | 30 | None (Clean Video) |
+| **5. Trans 5** | `trans5` | **64% - 80%** | 20 | None (Clean Video) |
+| **6. Footer** | `footerbg` | **80% - 100%** | 10 | **Footer UI** (Links, Copyright) |
 
-### C. The Loading Screen (Universal)
-* **Fix:** Enable the "System Initializing" screen for **BOTH** Mobile and Laptop.
-* **Visual:**
-    * Center: The new "Guardian Pulse" logo breathing.
-    * Bottom: Monospaced text `LOADING ASSETS // [XX]%`.
-    * Background: Pure `#050505`.
+## 4. IMPLEMENTATION DETAILS
 
-## 4. LAPTOP UI SPECIFICATIONS (`DeviceScroll.tsx`)
-* **Hero Text:**
-    * **Position:** Top-Right (`top-[15%] right-[5%]`).
-    * **Style:** Apple-style big heading. "Professional. Guardian."
-* **Feature Cards (30% - 60%):**
-    * **Layout:** A **Vertical Stack of Glass Cards** on the Right Side.
-    * **Behavior:** As you scroll, the active card lights up (`opacity-100`), inactive cards dim (`opacity-30`).
-    * **Visual:** "Hardware Meets Cloud" -> "AI Threat Cam" -> "Seismic Sensor".
+### A. Video Player Specs
+* **Tag:** `<video autoplay loop muted playsinline className="fixed inset-0 w-full h-full object-cover" />`
+* **Optimization:** Use `will-change: opacity` for smooth hardware acceleration.
+* **Transition:** Use Framer Motion `useTransform` with a small overlap (e.g., Video 1 fades out at 0.18 while Video 2 fades in at 0.15) to prevent black flashes between videos.
 
-## 5. MOBILE UI SPECIFICATIONS (`MobileDeviceScroll.tsx`)
-* **Layout:** "Immersive Wallpaper" (Fixed Device Background).
-* **UI Layer:** **"Apple Maps" Style Bottom Sheet.**
-    * **0% Scroll:** A Glass Card at the bottom showing Title + CTA.
-    * **Scroll Interaction:** As you scroll, the bottom sheet **Expands** to cover the bottom half, revealing feature details (Bento Grid) while the device scales/shifts in the background.
-* **Typograpghy:** Massive, centered text for "E-ResQ" that fades out as the device zooms in.
+### B. The Footer UI (Video 6 Overlay)
+* **Trigger:** When scroll > 85%.
+* **Content:** A standard SaaS Footer overlaid on the video.
+    * **Columns:** Product, Company, Resources.
+    * **Bottom:** "© 2026 E-ResQ Inc. All rights reserved."
+    * **Style:** Glassmorphism overlay (`bg-black/40 backdrop-blur-md`) so the text is readable over the `footerbg` video.
 
-## 6. STRICT RULES FOR AGENT
-1.  **Zero-Touch Logic:** Do NOT modify the `useRef`, `requestAnimationFrame`, or `io2_opt` image loading logic. That is perfect. Only change the `<div>`s and CSS classes *around* it.
-2.  **Separate Files:** Laptop changes go to `DeviceScroll.tsx`. Phone changes go to `MobileDeviceScroll.tsx`.
-3.  **Logo:** Replace the old text logo with the new "Shield Pulse" icon everywhere.
+## 5. STRICT RULES FOR AGENT
+1.  **Removal:** You must completely remove the `<canvas>` and image preloading logic from `DeviceScroll.tsx`.
+2.  **Path Safety:** Handle spaces in paths (`hero%20section`).
+3.  **Performance:** If a video is fully transparent (opacity 0), apply `visibility: hidden` via CSS to save GPU resources.
+4.  **Quality:** Do NOT compress or alter the videos. Display them at original quality.
 
-## 7. EXECUTION PLAN
-1.  **Create `Navbar.tsx`:** The new "Floating Capsule" header.
-2.  **Update `App.tsx`:** Enable Global Loader for mobile.
-3.  **Refactor `DeviceScroll.tsx` (Laptop):** Implement the "Vertical Card Stack" UI.
-4.  **Refactor `MobileDeviceScroll.tsx` (Phone):** Implement the "Bottom Sheet" UI.
+## 6. EXECUTION PLAN
+1.  Scan all 6 folders to get filenames.
+2.  Rebuild `DeviceScroll.tsx` with the 6-Video Stack.
+3.  Implement the Scroll/Opacity mapping.
+4.  Add the Footer UI overlay for the final stage.
