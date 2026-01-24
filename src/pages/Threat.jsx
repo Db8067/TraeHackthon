@@ -128,21 +128,21 @@ const Threat = () => {
   const m1Name = contacts.find(c => c.id === 'm1')?.name || 'Emergency Contact';
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white p-4 pb-24">
+    <div className="min-h-screen bg-[#050505] text-white p-4 pb-24 pt-24">
       <div className="max-w-md mx-auto relative h-[85vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between mb-4 z-10">
             <div className="flex items-center space-x-2">
                 <Video className="text-red-500 animate-pulse" />
-                <h1 className="text-xl font-bold tracking-wider">THREAT CAM</h1>
+                <h1 className="text-xl font-bold tracking-wider text-white">THREAT CAM</h1>
             </div>
-            <div className="bg-red-600/20 text-red-400 px-3 py-1 rounded-full text-xs font-mono border border-red-500/30">
+            <div className="bg-red-600/10 text-red-400 px-3 py-1 rounded-full text-xs font-mono border border-red-500/20">
                 LIVE FEED
             </div>
         </div>
 
         {/* Camera Viewport */}
-        <div className="flex-1 bg-black rounded-3xl overflow-hidden relative shadow-2xl border-2 border-slate-700">
+        <div className="flex-1 bg-black rounded-3xl overflow-hidden relative shadow-2xl shadow-red-900/10 border border-white/10">
             {stream ? (
                 <video 
                     ref={videoRef} 
@@ -152,7 +152,7 @@ const Threat = () => {
                     className="w-full h-full object-cover transform scale-x-[-1]" 
                 />
             ) : (
-                <div className="w-full h-full flex items-center justify-center bg-slate-800 text-slate-500">
+                <div className="w-full h-full flex items-center justify-center bg-white/5 text-white/40">
                     <p>Initializing Camera...</p>
                 </div>
             )}
@@ -164,7 +164,7 @@ const Threat = () => {
                         initial={{ opacity: 0 }} 
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="absolute top-4 left-4 flex items-center space-x-2 bg-black/50 backdrop-blur px-3 py-1 rounded-full"
+                        className="absolute top-4 left-4 flex items-center space-x-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-red-500/30"
                     >
                         <div className="w-3 h-3 bg-red-600 rounded-full animate-ping"></div>
                         <span className="text-xs font-bold text-red-500 flex items-center">
@@ -176,29 +176,29 @@ const Threat = () => {
 
             {/* Overlays */}
             {isSending && (
-                <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-20">
+                <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center z-20 backdrop-blur-sm">
                     <UploadCloud className="w-16 h-16 text-blue-500 animate-bounce mb-4" />
                     <h2 className="text-xl font-bold text-blue-400">Encrypting & Uploading...</h2>
-                    <p className="text-slate-400 text-sm mt-2">Saving Video_00{Math.floor(Math.random() * 100)}.mp4</p>
+                    <p className="text-white/40 text-sm mt-2">Saving Video_00{Math.floor(Math.random() * 100)}.mp4</p>
                 </div>
             )}
 
             {isSent && (
-                <div className="absolute inset-0 bg-green-900/90 flex flex-col items-center justify-center z-20 p-6 text-center">
+                <div className="absolute inset-0 bg-green-950/90 flex flex-col items-center justify-center z-20 p-6 text-center backdrop-blur-md">
                     <motion.div 
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
-                        className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mb-6 shadow-lg"
+                        className="w-20 h-20 bg-green-600 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-green-500/30"
                     >
                         <CheckCircle className="w-10 h-10 text-white" />
                     </motion.div>
                     <h2 className="text-2xl font-bold text-white mb-2">Evidence Secured!</h2>
-                    <p className="text-green-200">
+                    <p className="text-green-200/80">
                         Video sent to <span className="font-bold text-white">{m1Name}</span> via Cloud API.
                     </p>
                     <button 
                         onClick={() => setIsSent(false)}
-                        className="mt-8 px-6 py-2 bg-slate-800 rounded-full text-sm hover:bg-slate-700 transition"
+                        className="mt-8 px-6 py-2 bg-white/10 rounded-full text-sm hover:bg-white/20 transition text-white border border-white/10"
                     >
                         Dismiss
                     </button>
@@ -211,10 +211,10 @@ const Threat = () => {
             <motion.button
                 whileTap={{ scale: 0.9 }}
                 onClick={handleRecordToggle}
-                className={`w-20 h-20 rounded-full flex items-center justify-center border-4 shadow-lg transition-all ${
+                className={`w-20 h-20 rounded-full flex items-center justify-center border-4 shadow-lg shadow-red-900/30 transition-all ${
                     isRecording 
                     ? 'bg-white border-red-500' 
-                    : 'bg-red-600 border-red-200 hover:bg-red-700'
+                    : 'bg-red-600 border-red-500/50 hover:bg-red-500 hover:shadow-red-500/50'
                 }`}
             >
                 {isRecording ? (
@@ -224,7 +224,7 @@ const Threat = () => {
                 )}
             </motion.button>
         </div>
-        <p className="text-center text-slate-500 text-xs mt-4">
+        <p className="text-center text-white/40 text-xs mt-4">
             {isRecording ? 'Tap to Stop & Send' : 'Tap to Start Recording'}
         </p>
       </div>

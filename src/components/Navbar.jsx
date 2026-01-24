@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ShieldAlert, Settings, Activity, Menu, X, Smartphone, Video, Phone, PlayCircle, ShoppingBag } from 'lucide-react';
+import { ShieldAlert, Activity, Menu, X, Smartphone } from 'lucide-react';
 import { clsx } from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -8,6 +8,7 @@ const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
   const [scrolled, setScrolled] = useState(false);
+  const isSimulator = location.pathname === '/device-simulator';
 
   useEffect(() => {
     const handleScroll = () => {
@@ -18,13 +19,12 @@ const Navbar = () => {
   }, []);
 
   const navItems = [
-    { name: 'Home', path: '/', icon: ShieldAlert },
-    { name: 'Device Health', path: '/device-health', icon: Activity },
-    { name: 'Threat', path: '/threat', icon: Video },
-    { name: 'Earthquake', path: '/earthquake', icon: Activity },
-    { name: 'Simulator', path: '/device-simulator', icon: PlayCircle },
-    { name: 'Dialer', path: '/emergency-dialer', icon: Phone },
-    { name: 'Configure', path: '/configure', icon: Settings },
+    { name: 'Home', path: '/' },
+    { name: 'Configure', path: '/configure' },
+    { name: 'Device Health', path: '/device-health' },
+    { name: 'Threat Detection', path: '/threat' },
+    { name: 'Earthquake', path: '/earthquake' },
+    { name: 'Emergency', path: '/emergency-dialer' },
   ];
 
   return (
@@ -33,67 +33,72 @@ const Navbar = () => {
       animate={{ y: 0 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
       className={clsx(
-        "fixed top-0 left-0 right-0 z-[90] transition-all duration-300",
-        scrolled 
-          ? "bg-black/80 backdrop-blur-xl border-b border-white/5 py-2 shadow-2xl shadow-black/50" 
-          : "bg-transparent py-6"
+        'fixed top-0 left-0 right-0 z-50 transition-all duration-500 border-b',
+        scrolled
+          ? 'bg-black/60 backdrop-blur-xl border-white/10 py-4 shadow-lg shadow-black/50'
+          : isSimulator 
+            ? 'bg-black py-6 border-white/10' // Solid black for simulator page
+            : 'bg-transparent border-transparent py-6'
       )}
     >
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="flex items-center justify-between">
-          
-          {/* Logo */}
-          <Link to="/" className="flex items-center space-x-3 group">
-            <div className="relative flex items-center justify-center h-10 w-10 rounded-xl bg-gradient-to-br from-medical-red to-red-900 shadow-lg shadow-red-500/20 group-hover:scale-105 transition-transform">
-                <ShieldAlert className="h-6 w-6 text-white" />
+      <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
+        <Link to="/" className="flex items-center gap-3 group">
+            <div className="relative flex items-center justify-center h-10 w-10">
+                <ShieldAlert className="absolute h-8 w-8 text-white transition-transform group-hover:scale-110" />
+                <Activity className="absolute h-4 w-4 text-medical-blue animate-[pulse_3s_ease-in-out_infinite]" />
             </div>
             <div className="flex flex-col">
-                <span className="font-bold text-xl tracking-tight text-white leading-none">E-ResQ</span>
-                <span className="text-[10px] font-mono tracking-widest text-white/40 uppercase">System v3.0</span>
+                <span className="font-bold text-xl tracking-tighter text-white leading-none group-hover:text-blue-400 transition-colors">E-ResQ</span>
+                <span className="text-[10px] font-mono tracking-widest text-white/40 uppercase">Guardian</span>
             </div>
-          </Link>
-          
-          {/* Desktop Nav */}
-          <div className="hidden xl:flex items-center space-x-1 rounded-full border border-white/5 bg-white/5 p-1 backdrop-blur-md">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = location.pathname === item.path;
-                return (
-                  <Link
-                    key={item.name}
-                    to={item.path}
-                    className={clsx(
-                      'flex items-center px-4 py-2 rounded-full text-sm font-medium transition-all duration-300',
-                      isActive
-                        ? 'bg-white text-black shadow-sm'
-                        : 'text-white/60 hover:text-white hover:bg-white/5'
-                    )}
-                  >
-                    {item.name}
-                  </Link>
-                );
-              })}
-          </div>
+        </Link>
 
-          {/* CTA & Mobile Menu Toggle */}
-          <div className="flex items-center gap-4">
-             <Link 
-                to="/pre-book"
-                className="hidden md:flex items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-500 transition-all shadow-[0_0_15px_rgba(37,99,235,0.3)]"
-             >
-                <ShoppingBag className="w-4 h-4" />
-                <span>Pre-Book</span>
-             </Link>
-
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="xl:hidden inline-flex items-center justify-center p-2 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors focus:outline-none"
+        {/* Desktop Navigation */}
+        <div className="hidden lg:flex items-center gap-1">
+          {navItems.map((item) => (
+            <Link
+              key={item.name}
+              to={item.path}
+              className={clsx(
+                'px-4 py-2 rounded-full text-sm font-medium transition-all duration-300',
+                location.pathname === item.path 
+                    ? 'bg-white/10 text-white shadow-[0_0_15px_rgba(255,255,255,0.1)]' 
+                    : 'text-white/60 hover:text-white hover:bg-white/5'
+              )}
             >
-              {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </button>
-          </div>
-
+              {item.name}
+            </Link>
+          ))}
+          {/* Simulator Link */}
+           <Link
+              to="/device-simulator"
+              className={clsx(
+                'px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-2',
+                location.pathname === '/device-simulator'
+                    ? 'bg-white/10 text-white shadow-[0_0_15px_rgba(255,255,255,0.1)]' 
+                    : 'text-white/60 hover:text-white hover:bg-white/5'
+              )}
+            >
+              <Smartphone className="w-4 h-4" /> Simulator
+            </Link>
         </div>
+
+        <div className="hidden lg:block">
+             <Link
+                to="/pre-book"
+                className="relative overflow-hidden rounded-full bg-blue-600 px-6 py-2.5 text-sm font-bold text-white transition-transform hover:scale-105 hover:bg-blue-500 hover:shadow-[0_0_20px_rgba(37,99,235,0.5)] group shadow-[0_0_10px_rgba(37,99,235,0.3)]"
+            >
+                <span className="relative z-10">Pre-Book Now</span>
+            </Link>
+        </div>
+
+        {/* Mobile Menu Button */}
+        <button
+          className="lg:hidden text-white p-2 rounded-full hover:bg-white/10 transition-colors"
+          onClick={() => setIsOpen(!isOpen)}
+        >
+          {isOpen ? <X /> : <Menu />}
+        </button>
       </div>
 
       {/* Mobile Menu Overlay */}
@@ -103,37 +108,40 @@ const Navbar = () => {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="xl:hidden bg-black/95 backdrop-blur-xl border-t border-white/10 overflow-hidden"
+            className="absolute top-full left-0 right-0 bg-black/90 backdrop-blur-xl border-b border-white/10 overflow-hidden lg:hidden"
           >
-            <div className="px-4 py-6 space-y-2">
-              {navItems.map((item) => {
-                 const Icon = item.icon;
-                 const isActive = location.pathname === item.path;
-                 return (
-                  <Link
+            <div className="p-6 flex flex-col gap-4">
+                {navItems.map((item) => (
+                <Link
                     key={item.name}
                     to={item.path}
                     onClick={() => setIsOpen(false)}
                     className={clsx(
-                      'flex items-center px-4 py-3 rounded-xl text-base font-medium transition-colors',
-                      isActive
-                        ? 'bg-white/10 text-white'
-                        : 'text-white/60 hover:bg-white/5 hover:text-white'
+                    'text-lg font-medium transition-colors py-2 border-b border-white/5',
+                    location.pathname === item.path ? 'text-white' : 'text-white/60'
                     )}
-                  >
-                    <Icon className="w-5 h-5 mr-3 opacity-70" />
+                >
                     {item.name}
-                  </Link>
-                );
-              })}
-               <Link 
-                to="/pre-book"
-                onClick={() => setIsOpen(false)}
-                className="flex items-center justify-center gap-2 w-full rounded-xl bg-blue-600 px-4 py-3 text-base font-bold text-white mt-4 shadow-lg shadow-blue-900/20"
-             >
-                <ShoppingBag className="w-5 h-5" />
-                <span>Pre-Book Device</span>
-             </Link>
+                </Link>
+                ))}
+                 <Link
+                    to="/device-simulator"
+                    onClick={() => setIsOpen(false)}
+                    className={clsx(
+                    'text-lg font-medium transition-colors py-2 border-b border-white/5 flex items-center gap-2',
+                    location.pathname === '/device-simulator' ? 'text-white' : 'text-white/60'
+                    )}
+                >
+                   <Smartphone className="w-5 h-5" /> Simulator
+                </Link>
+
+                <Link
+                    to="/pre-book"
+                    onClick={() => setIsOpen(false)}
+                    className="mt-4 text-center rounded-full bg-blue-600 px-6 py-3 text-lg font-bold text-white shadow-lg shadow-blue-900/30"
+                >
+                    Pre-Book Now
+                </Link>
             </div>
           </motion.div>
         )}

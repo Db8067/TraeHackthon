@@ -4,7 +4,12 @@
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 font-sans antialiased;
+    @apply bg-[#050505] text-white font-sans antialiased;
+  }
+  
+  /* Ensure root container is also full height and black */
+  #root {
+    @apply min-h-screen bg-[#050505];
   }
 }
 
@@ -17,5 +22,13 @@
   @keyframes loading {
     0% { transform: translateX(-100%); }
     100% { transform: translateX(100%); }
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }

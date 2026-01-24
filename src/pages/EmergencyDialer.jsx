@@ -27,21 +27,21 @@ const EmergencyDialer = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 pb-24">
+    <div className="min-h-screen bg-[#050505] p-4 pb-24 pt-24">
       <div className="max-w-md mx-auto">
         <header className="mb-8 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 text-red-600 rounded-full mb-4">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-red-500/10 border border-red-500/20 text-red-500 rounded-full mb-4">
                 <Phone className="w-8 h-8" />
             </div>
-            <h1 className="text-2xl font-bold text-slate-900">Emergency Dialer</h1>
-            <p className="text-slate-500">Tap a contact to dial immediately.</p>
+            <h1 className="text-2xl font-bold text-white">Emergency Dialer</h1>
+            <p className="text-white/50">Tap a contact to dial immediately.</p>
         </header>
 
         {/* SOS Button */}
         <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={handleSOS}
-            className="w-full bg-red-600 text-white rounded-2xl p-6 shadow-xl shadow-red-200 mb-8 flex items-center justify-between group overflow-hidden relative"
+            className="w-full bg-red-600 text-white rounded-2xl p-6 shadow-lg shadow-red-900/30 mb-8 flex items-center justify-between group overflow-hidden relative border border-red-500/50"
         >
             <div className="absolute inset-0 bg-red-500 transform -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
             <div className="relative z-10 flex items-center">
@@ -61,7 +61,7 @@ const EmergencyDialer = () => {
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
-                    className="bg-slate-800 text-white p-4 rounded-xl mb-6 shadow-lg text-sm"
+                    className="bg-green-900/20 border border-green-500/30 text-white p-4 rounded-xl mb-6 shadow-lg text-sm backdrop-blur-md"
                 >
                     <div className="flex items-center font-bold text-green-400 mb-1">
                         <MapPin className="w-4 h-4 mr-2" /> SOS SENT
@@ -84,19 +84,19 @@ const EmergencyDialer = () => {
                     disabled={!contact.name}
                     className={`p-6 rounded-2xl border-2 text-left transition-all relative overflow-hidden ${
                         contact.name 
-                        ? 'bg-white border-slate-200 hover:border-blue-500 hover:shadow-md cursor-pointer' 
-                        : 'bg-slate-100 border-slate-100 opacity-50 cursor-not-allowed'
+                        ? 'bg-white/5 border-white/10 hover:border-blue-500/50 hover:bg-white/10 cursor-pointer backdrop-blur-sm' 
+                        : 'bg-white/5 border-white/5 opacity-30 cursor-not-allowed'
                     }`}
                 >
-                    <div className="text-xs font-bold text-slate-400 mb-2">M{index + 1}</div>
-                    <div className="font-bold text-slate-900 truncate text-lg">
+                    <div className="text-xs font-bold text-white/30 mb-2">M{index + 1}</div>
+                    <div className="font-bold text-white truncate text-lg">
                         {contact.name || 'Not Set'}
                     </div>
-                    <div className="text-sm text-slate-500 truncate">
+                    <div className="text-sm text-white/50 truncate">
                         {contact.relation || '---'}
                     </div>
                     {contact.phone && (
-                        <div className="text-xs text-slate-400 mt-2 font-mono">
+                        <div className="text-xs text-white/30 mt-2 font-mono">
                             {contact.phone}
                         </div>
                     )}
@@ -111,18 +111,18 @@ const EmergencyDialer = () => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed inset-0 bg-slate-900/90 z-50 flex flex-col items-center justify-center text-white"
+                    className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center text-white backdrop-blur-md"
                 >
-                    <div className="w-32 h-32 rounded-full bg-slate-800 flex items-center justify-center mb-8 relative">
-                        <div className="absolute inset-0 rounded-full border-4 border-slate-700 animate-ping"></div>
+                    <div className="w-32 h-32 rounded-full bg-white/5 flex items-center justify-center mb-8 relative border border-white/10">
+                        <div className="absolute inset-0 rounded-full border-4 border-green-500/30 animate-ping"></div>
                         <Phone className="w-12 h-12 text-green-400" />
                     </div>
                     <h2 className="text-3xl font-bold mb-2">{calling.name}</h2>
-                    <p className="text-slate-400 text-lg mb-1">Calling {calling.relation}...</p>
-                    <p className="text-slate-500 font-mono mb-8">{calling.phone}</p>
+                    <p className="text-white/50 text-lg mb-1">Calling {calling.relation}...</p>
+                    <p className="text-white/30 font-mono mb-8">{calling.phone}</p>
                     <button 
                         onClick={() => setCalling(null)}
-                        className="bg-red-600 w-16 h-16 rounded-full flex items-center justify-center hover:bg-red-700 transition"
+                        className="bg-red-600 w-16 h-16 rounded-full flex items-center justify-center hover:bg-red-700 transition shadow-lg shadow-red-900/40"
                     >
                         <X className="w-8 h-8" />
                     </button>

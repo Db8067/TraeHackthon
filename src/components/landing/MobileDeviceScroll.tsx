@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, useScroll, useTransform, useSpring, useMotionValueEvent, AnimatePresence } from 'framer-motion';
-import { Play, Settings, ShieldCheck, User, Phone, Camera, Activity, Shield, Bell, CheckCircle, Zap } from 'lucide-react';
+import { Play, Settings, ShieldCheck, Phone, Camera, Activity, Shield, Bell, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { Preloader } from '../ui/Preloader';
 
 // --- Constants ---
 const FRAME_COUNT = 26;
@@ -11,6 +12,7 @@ const IMAGE_EXTENSION = '.jpg';
 // --- Hook: Image Preloader ---
 const useImagePreloader = () => {
   const [loaded, setLoaded] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [images, setImages] = useState<HTMLImageElement[]>([]);
 
   useEffect(() => {
@@ -19,13 +21,15 @@ const useImagePreloader = () => {
 
     const updateProgress = () => {
       loadedCount++;
+      const currentProgress = Math.round((loadedCount / FRAME_COUNT) * 100);
+      setProgress(currentProgress);
+      
       if (loadedCount === FRAME_COUNT) {
         setImages(imgArray);
-        setLoaded(true);
+        setTimeout(() => setLoaded(true), 500);
       }
     };
 
-    // Load in batches
     const loadBatch = async (startIndex: number, batchSize: number) => {
         for (let i = startIndex; i < Math.min(startIndex + batchSize, FRAME_COUNT + 1); i++) {
              const img = new Image();
@@ -46,15 +50,8 @@ const useImagePreloader = () => {
     loadAll();
   }, []);
 
-  return { loaded, images };
+  return { loaded, images, progress };
 };
-
-// --- Component: Glass Card ---
-const GlassCard: React.FC<{ children: React.ReactNode, className?: string }> = ({ children, className }) => (
-    <div className={`bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl ${className}`}>
-        {children}
-    </div>
-);
 
 // --- Component: Feature Item ---
 const FeatureItem: React.FC<{ icon: any, title: string, subtitle: string }> = ({ icon: Icon, title, subtitle }) => (
@@ -71,7 +68,7 @@ const FeatureItem: React.FC<{ icon: any, title: string, subtitle: string }> = ({
 
 // --- Component: MobileDeviceScroll ---
 const MobileDeviceScroll: React.FC = () => {
-  const { loaded, images } = useImagePreloader();
+  const { loaded, images, progress } = useImagePreloader();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastRenderedIndex = useRef<number>(-1);
@@ -96,6 +93,8 @@ const MobileDeviceScroll: React.FC = () => {
   });
 
   const frameIndex = useTransform(smoothProgress, [0, 1], [0, FRAME_COUNT - 1]);
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.1], [1, 0]);
+  const heroScale = useTransform(scrollYProgress, [0, 0.1], [1, 0.9]);
 
   // --- Rendering Logic (Big & Centered) ---
   const renderFrame = (index: number) => {
@@ -112,7 +111,6 @@ const MobileDeviceScroll: React.FC = () => {
     if (!img) return;
 
     const dpr = window.devicePixelRatio || 1;
-    // Set canvas dimensions to match window (fixed background)
     if (canvas.width !== window.innerWidth * dpr || canvas.height !== window.innerHeight * dpr) {
         canvas.width = window.innerWidth * dpr;
         canvas.height = window.innerHeight * dpr;
@@ -123,20 +121,14 @@ const MobileDeviceScroll: React.FC = () => {
     const h = window.innerHeight;
     
     // BIG & CENTERED Logic
-    // Scale based on HEIGHT (85%) so device looks TALL
     const scale = (h / img.height) * 0.85; 
     const drawWidth = img.width * scale;
     const drawHeight = img.height * scale;
-    
-    // Centering with RIGHT SHIFT (15% offset)
-    // The device in the source image is slightly to the left, so we shift rendering to the RIGHT to center it.
     const offsetX = (w - drawWidth) / 2 + (w * 0.15);
     const offsetY = (h - drawHeight) / 2;
 
-    // Fill with black first
     ctx.fillStyle = '#050505';
     ctx.fillRect(0, 0, w, h);
-    
     ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
 
     lastRenderedIndex.current = clampedIndex;
@@ -148,7 +140,6 @@ const MobileDeviceScroll: React.FC = () => {
 
   useEffect(() => {
     if (loaded) {
-        // Initial render
         renderFrame(0);
         const handleResize = () => renderFrame(frameIndex.get());
         window.addEventListener('resize', handleResize);
@@ -156,177 +147,131 @@ const MobileDeviceScroll: React.FC = () => {
     }
   }, [loaded, images]);
 
-  if (!loaded) return <div className="fixed inset-0 bg-[#050505] z-50" />;
-
   return (
-    <div ref={containerRef} className="relative bg-[#050505] min-h-[350vh]">
-      
-      {/* 1. Fixed Canvas Background */}
-      <canvas
-        ref={canvasRef}
-        className="fixed top-0 left-0 w-full h-full z-0 pointer-events-none"
-      />
+    <>
+      <AnimatePresence>
+        {!loaded && <Preloader progress={progress} />}
+      </AnimatePresence>
 
-      {/* 2. Scrollable Foreground Content */}
-      <div className="relative z-10 flex flex-col items-center w-full px-4 pt-[0] pb-32 gap-[40vh]">
+      <div ref={containerRef} className="relative bg-[#050505] min-h-[300vh]">
         
-        {/* Section 1: Hero (Vertically Centered) */}
-        <div className="h-screen flex items-center justify-center w-full max-w-sm">
-            <motion.div 
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.8 }}
-                className="w-full"
-            >
-                <GlassCard className="text-center">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/10 mb-4">
-                        <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                        </span>
-                        <span className="text-[10px] font-bold tracking-widest uppercase text-white/80">System Online</span>
-                    </div>
-                    <h1 className="text-4xl font-bold tracking-tighter text-white mb-2">E-ResQ v3.0</h1>
-                    <p className="text-white/60 mb-6 text-sm">
-                        The ultimate digital companion for your physical safety device. Rugged hardware meets cloud intelligence.
-                    </p>
-                    <div className="grid grid-cols-2 gap-3">
-                        <Link to="/device-simulator" className="flex items-center justify-center gap-2 rounded-xl bg-white/10 py-3 text-sm font-bold text-white border border-white/10">
-                            <Play className="w-4 h-4" /> Simulator
-                        </Link>
-                        <Link to="/pre-book" className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-bold text-white shadow-lg shadow-blue-900/30">
-                            <Settings className="w-4 h-4" /> Pre-Book
-                        </Link>
-                    </div>
-                </GlassCard>
-            </motion.div>
-        </div>
+        {/* 1. Fixed Canvas Background */}
+        <canvas
+          ref={canvasRef}
+          className="fixed top-0 left-0 w-full h-full z-0 pointer-events-none"
+        />
 
-        {/* Section 1.3: Durability Visual */}
-        <motion.div
-            initial={{ opacity: 0, x: -50 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ margin: "-100px" }}
-            className="w-full max-w-sm"
-        >
-             <GlassCard className="flex flex-row items-center gap-4">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-gray-700 to-gray-900 shadow-inner border border-white/10">
-                    <ShieldCheck className="h-8 w-8 text-white" />
-                </div>
-                <div>
-                    <h3 className="text-lg font-bold text-white">Military Grade</h3>
-                    <p className="text-sm text-white/50 leading-tight mt-1">
-                        IP68 Water Resistant & Shockproof casing designed for extreme conditions.
-                    </p>
-                </div>
-            </GlassCard>
-        </motion.div>
-
-
-        {/* Section 1.5: Intermediate Visuals (Pulse Animation) */}
-        <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ margin: "-100px" }}
-            className="w-full max-w-sm"
-        >
-            <GlassCard className="flex flex-col items-center text-center">
-                <div className="relative mb-4">
-                    <div className="absolute inset-0 animate-ping rounded-full bg-blue-500/30 h-16 w-16"></div>
-                    <div className="relative flex items-center justify-center h-16 w-16 rounded-full bg-gradient-to-tr from-blue-600 to-blue-400 shadow-lg shadow-blue-500/50">
-                        <Zap className="h-8 w-8 text-white fill-current" />
-                    </div>
-                </div>
-                <h2 className="text-2xl font-bold text-white mb-2">Always Ready</h2>
-                <p className="text-white/60 text-sm">
-                    Advanced sensors constantly monitoring for threats, even when you sleep.
-                </p>
-            </GlassCard>
-        </motion.div>
-
-        {/* Section 2: Features (Cards) */}
+        {/* 2. Fixed Hero Title (Fades out) */}
         <motion.div 
-            initial={{ opacity: 0, y: 50 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ margin: "-100px" }}
-            className="w-full max-w-sm"
+            style={{ opacity: heroOpacity, scale: heroScale }}
+            className="fixed top-0 left-0 w-full h-[60vh] flex flex-col items-center justify-center z-10 pointer-events-none text-center px-6"
         >
-            <GlassCard>
-                <h2 className="text-2xl font-bold text-white mb-6 border-b border-white/10 pb-4">Core Systems</h2>
-                <FeatureItem 
-                    icon={Phone} 
-                    title="Instant Dispatch" 
-                    subtitle="One-touch connection to family & emergency services within milliseconds." 
-                />
-                <FeatureItem 
-                    icon={Camera} 
-                    title="AI Threat Cam" 
-                    subtitle="On-device computer vision detects aggression and weapons instantly." 
-                />
-                <FeatureItem 
-                    icon={Activity} 
-                    title="Seismic Sensor" 
-                    subtitle="Advanced hardware sensors provide early earthquake warnings." 
-                />
-            </GlassCard>
-        </motion.div>
-
-        {/* Section 3: Process Steps */}
-        <motion.div 
-             initial={{ opacity: 0, y: 50 }}
-             whileInView={{ opacity: 1, y: 0 }}
-             viewport={{ margin: "-100px" }}
-             className="w-full max-w-sm"
-        >
-            <GlassCard>
-                 <div className="space-y-8">
-                    <div className="text-center">
-                        <div className="h-14 w-14 mx-auto rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center mb-3 border border-blue-500/30">
-                            <Activity className="h-7 w-7" />
-                        </div>
-                        <h3 className="text-xl font-bold text-white">1. Detect</h3>
-                        <p className="text-sm text-white/50 mt-1">24/7 Environmental Monitoring</p>
-                    </div>
-                    
-                     <div className="text-center">
-                        <div className="h-14 w-14 mx-auto rounded-full bg-red-500/20 text-red-400 flex items-center justify-center mb-3 border border-red-500/30">
-                            <Bell className="h-7 w-7" />
-                        </div>
-                        <h3 className="text-xl font-bold text-white">2. Alert</h3>
-                        <p className="text-sm text-white/50 mt-1">Instant Cloud Notification</p>
-                    </div>
-
-                     <div className="text-center">
-                        <div className="h-14 w-14 mx-auto rounded-full bg-green-500/20 text-green-400 flex items-center justify-center mb-3 border border-green-500/30">
-                            <Shield className="h-7 w-7" />
-                        </div>
-                        <h3 className="text-xl font-bold text-white">3. Secure</h3>
-                        <p className="text-sm text-white/50 mt-1">Emergency Response Dispatched</p>
-                    </div>
-                 </div>
-            </GlassCard>
-        </motion.div>
-
-        {/* Section 4: CTA */}
-        <motion.div 
-             initial={{ opacity: 0, scale: 0.9 }}
-             whileInView={{ opacity: 1, scale: 1 }}
-             viewport={{ margin: "-50px" }}
-             className="w-full max-w-sm mb-20"
-        >
-            <div className="text-center bg-gradient-to-br from-blue-900 to-black p-8 rounded-3xl border border-white/10 shadow-2xl">
-                <ShieldCheck className="w-16 h-16 text-blue-400 mx-auto mb-4" />
-                <h2 className="text-3xl font-bold text-white mb-2">Total Protection</h2>
-                <p className="text-white/60 mb-8">Join 2,000+ families secured by E-ResQ.</p>
-                <Link to="/pre-book" className="block w-full py-4 rounded-xl bg-white text-black font-bold text-lg hover:scale-[1.02] transition-transform">
-                    Pre-Book Now
-                </Link>
+             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/10 mb-6 backdrop-blur-md">
+                <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+                <span className="text-[10px] font-bold tracking-widest uppercase text-white/80">System Online</span>
             </div>
+            <h1 className="text-6xl font-bold tracking-tighter text-white leading-none">
+                E-ResQ
+            </h1>
+            <p className="text-xl font-medium text-white/60 mt-2 tracking-tight">
+                Guardian.
+            </p>
         </motion.div>
 
+        {/* 3. Scrollable Bottom Sheet */}
+        <div className="relative z-20 pt-[65vh]">
+            <div className="bg-black/80 backdrop-blur-xl border-t border-white/10 rounded-t-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.5)] min-h-screen pb-32">
+                
+                {/* Sheet Handle */}
+                <div className="w-full flex justify-center pt-4 pb-8">
+                    <div className="w-12 h-1.5 rounded-full bg-white/20"></div>
+                </div>
+
+                <div className="px-6 space-y-12">
+                    
+                    {/* Intro Text */}
+                    <div className="text-center space-y-4">
+                        <h2 className="text-3xl font-bold text-white tracking-tight">Total Protection</h2>
+                        <p className="text-white/60 leading-relaxed">
+                            The ultimate digital companion for your physical safety device. Rugged hardware meets cloud intelligence.
+                        </p>
+                         <div className="grid grid-cols-2 gap-3 pt-4">
+                            <Link to="/device-simulator" className="flex items-center justify-center gap-2 rounded-xl bg-white/10 py-3 text-sm font-bold text-white border border-white/10">
+                                <Play className="w-4 h-4" /> Simulator
+                            </Link>
+                            <Link to="/pre-book" className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-bold text-white shadow-lg shadow-blue-900/30">
+                                <Settings className="w-4 h-4" /> Pre-Book
+                            </Link>
+                        </div>
+                    </div>
+
+                    {/* Bento Grid: Durability */}
+                    <div className="bg-white/5 border border-white/10 rounded-3xl p-6 flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center border border-white/10">
+                            <ShieldCheck className="h-6 w-6 text-white" />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-white text-lg">Military Grade</h3>
+                            <p className="text-sm text-white/50">IP68 Water & Shock Resistant</p>
+                        </div>
+                    </div>
+
+                    {/* Bento Grid: Monitoring */}
+                    <div className="bg-white/5 border border-white/10 rounded-3xl p-6 text-center relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-4 opacity-20">
+                            <Zap className="h-24 w-24 text-blue-500" />
+                        </div>
+                        <div className="relative z-10 flex flex-col items-center">
+                            <div className="h-14 w-14 rounded-full bg-blue-500/20 flex items-center justify-center mb-4 border border-blue-500/30">
+                                <Activity className="h-7 w-7 text-blue-400 animate-pulse" />
+                            </div>
+                            <h3 className="font-bold text-white text-xl">Always Ready</h3>
+                            <p className="text-sm text-white/50 mt-2">
+                                24/7 Threat Monitoring active even when you sleep.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Features List */}
+                    <div className="space-y-6">
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-white/40 border-b border-white/10 pb-2">Core Systems</h3>
+                        <FeatureItem icon={Phone} title="Instant Dispatch" subtitle="Direct uplink to emergency services." />
+                        <FeatureItem icon={Camera} title="AI Threat Cam" subtitle="Computer vision detects weapons." />
+                        <FeatureItem icon={Activity} title="Seismic Sensor" subtitle="Earthquake warnings seconds before." />
+                    </div>
+
+                     {/* Process Steps (Horizontal Scroll) */}
+                     <div className="flex gap-4 overflow-x-auto pb-4 -mx-6 px-6 no-scrollbar">
+                        {[
+                            { icon: Activity, title: "1. Detect", desc: "24/7 Monitoring" },
+                            { icon: Bell, title: "2. Alert", desc: "Cloud Notify" },
+                            { icon: Shield, title: "3. Secure", desc: "Dispatch Sent" }
+                        ].map((step, i) => (
+                            <div key={i} className="min-w-[140px] bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
+                                <step.icon className="h-8 w-8 mx-auto text-white/80 mb-3" />
+                                <div className="font-bold text-white">{step.title}</div>
+                                <div className="text-xs text-white/50">{step.desc}</div>
+                            </div>
+                        ))}
+                     </div>
+
+                    {/* Final CTA */}
+                    <div className="bg-gradient-to-br from-blue-900 to-black p-8 rounded-3xl border border-white/10 shadow-2xl text-center">
+                        <ShieldCheck className="w-12 h-12 text-blue-400 mx-auto mb-4" />
+                        <h2 className="text-2xl font-bold text-white mb-2">Secure Your Home</h2>
+                        <Link to="/pre-book" className="block w-full py-3 mt-6 rounded-xl bg-white text-black font-bold hover:scale-[1.02] transition-transform">
+                            Pre-Book Now
+                        </Link>
+                    </div>
+
+                </div>
+            </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
