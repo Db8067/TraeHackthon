@@ -34,8 +34,8 @@ const VideoLayer = ({
 }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
 
-    // optimize performance: hide when opacity is 0
-    const display = useTransform(opacity, (v) => v <= 0.01 ? "none" : "block");
+    // Removed display optimization to prevent flickering on mobile
+    // const display = useTransform(opacity, (v) => v <= 0.01 ? "none" : "block");
 
     // Smart Play/Pause Logic
     useMotionValueEvent(opacity, "change", (latest) => {
@@ -58,7 +58,7 @@ const VideoLayer = ({
 
     return (
         <motion.div
-            style={{ opacity, display, zIndex }}
+            style={{ opacity, zIndex }}
             className={`absolute inset-0 w-full h-full ${className}`}
         >
             <video
@@ -103,13 +103,14 @@ const MobileDeviceScroll: React.FC = () => {
     const { scrollYProgress } = useScroll({ target: containerRef, offset: ['start start', 'end end'] });
     const smoothProgress = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
 
-    // --- Transform Logic (6 Stages - Exact Match to Desktop) ---
-    const heroOpacity = useTransform(smoothProgress, [0.12, 0.18], [1, 0]);
-    const trans2Opacity = useTransform(smoothProgress, [0.12, 0.18, 0.29, 0.35], [0, 1, 1, 0]);
-    const trans3Opacity = useTransform(smoothProgress, [0.29, 0.35, 0.45, 0.51], [0, 1, 1, 0]);
-    const trans4Opacity = useTransform(smoothProgress, [0.45, 0.51, 0.61, 0.67], [0, 1, 1, 0]);
-    const trans5Opacity = useTransform(smoothProgress, [0.61, 0.67, 0.77, 0.83], [0, 1, 1, 0]);
-    const footerOpacity = useTransform(smoothProgress, [0.77, 0.83], [0, 1]);
+    // --- Transform Logic (6 Stages - Adjusted for Smoother Transitions) ---
+    // Overlapping transitions to prevent black gaps
+    const heroOpacity = useTransform(smoothProgress, [0, 0.15], [1, 0]);
+    const trans2Opacity = useTransform(smoothProgress, [0.10, 0.20, 0.30, 0.40], [0, 1, 1, 0]);
+    const trans3Opacity = useTransform(smoothProgress, [0.35, 0.45, 0.50, 0.60], [0, 1, 1, 0]);
+    const trans4Opacity = useTransform(smoothProgress, [0.55, 0.65, 0.70, 0.80], [0, 1, 1, 0]);
+    const trans5Opacity = useTransform(smoothProgress, [0.75, 0.85, 0.90, 0.95], [0, 1, 1, 0]);
+    const footerOpacity = useTransform(smoothProgress, [0.90, 1], [0, 1]);
 
     // --- UI Opacity Logic ---
     const heroUIOpacity = useTransform(smoothProgress, [0, 0.07, 0.08, 0.15, 0.18], [0, 0, 1, 1, 0]);
