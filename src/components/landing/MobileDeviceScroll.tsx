@@ -17,7 +17,6 @@ const WatermarkCover: React.FC = () => {
 };
 
 // --- Helper: Playback-Smart Video Layer ---
-// --- Helper: Playback-Smart Video Layer ---
 const VideoLayer = ({
     src,
     opacity,
@@ -26,8 +25,7 @@ const VideoLayer = ({
     forcePlay = false,
     objectPosition = "center",
     onReady,
-    poster,
-    priority = false // New prop: Disable optimizations for Hero
+    alwaysVisible = false // NEW: crucial for hero video
 }: {
     src: string;
     opacity: MotionValue<number>;
@@ -36,21 +34,20 @@ const VideoLayer = ({
     forcePlay?: boolean;
     objectPosition?: string;
     onReady?: () => void;
-    poster?: string;
-    priority?: boolean;
+    alwaysVisible?: boolean;
 }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
 
-    // optimize performance: hide when opacity is 0 (UNLESS priority is true)
-    const display = priority ? "block" : useTransform(opacity, (v) => v <= 0.01 ? "none" : "block");
+    // optimize performance: hide when opacity is 0 (UNLESS alwaysVisible is true)
+    // This prevents the browser from discarding the video frame when it's technically "hidden" by the preloader
+    const display = useTransform(opacity, (v) => (alwaysVisible || v > 0.01) ? "block" : "none");
 
-    // Smart Play/Pause Logic (Skip for priority video to prevent interruptions)
+    // Smart Play/Pause Logic
     useMotionValueEvent(opacity, "change", (latest) => {
-        if (priority) return; // Always keep priority video ready
         const video = videoRef.current;
         if (!video) return;
 
-        if (latest > 0.01) {
+        if (latest > 0.01 || alwaysVisible) {
             if (video.paused) video.play().catch(() => { });
         } else {
             if (!video.paused) video.pause();
@@ -64,7 +61,7 @@ const VideoLayer = ({
         }
     }, [forcePlay]);
 
-    // Check availability on mount
+    // Check availability on mount (if cached)
     useEffect(() => {
         if (videoRef.current && videoRef.current.readyState >= 3) {
             onReady?.();
@@ -81,11 +78,12 @@ const VideoLayer = ({
                 src={src}
                 muted
                 loop
+                autoPlay // Explicitly request autoplay
                 playsInline
-                poster={poster} // Fallback image
+                preload="auto" // Aggressive loading
                 // Performance: Signal when enough data is loaded to play
                 onLoadedData={() => onReady?.()}
-                // Fallback: Signal on mount if already cached/ready (rare but possible)
+                // Fallback: Signal on mount if already cached/ready
                 onCanPlay={() => onReady?.()}
                 style={{ objectPosition }} // Custom positioning
                 className="w-full h-full object-cover"
@@ -164,7 +162,7 @@ const MobileDeviceScroll: React.FC = () => {
                 <div className="sticky top-0 h-screen w-full overflow-hidden">
 
                     {/* --- VIDEO STACK WITH CUSTOM SHIFTS --- */}
-                    {/* Pass onReady to signal when Hero video is buffered */}
+                    {/* Hero: ALWAYS VISIBLE */}
                     <VideoLayer
                         src="/hero%20section.mp4"
                         opacity={heroOpacity}
@@ -172,8 +170,7 @@ const MobileDeviceScroll: React.FC = () => {
                         forcePlay={loaded}
                         objectPosition="center"
                         onReady={() => setHeroReady(true)}
-                        poster="/io2/ezgif-frame-001.jpg" // Visual fallback
-                        priority={true} // Force display: block
+                        alwaysVisible={true}
                     />
 
                     {/* Trans2: Shift Left (25%) */}
