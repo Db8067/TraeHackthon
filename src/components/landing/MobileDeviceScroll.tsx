@@ -109,6 +109,7 @@ const VideoLayer = ({
                 playsInline
                 webkit-playsinline="true"
                 controls={false}
+                disablePictureInPicture
                 preload="auto"
                 // Performance: Signal when enough data is loaded to play
                 onLoadedData={() => onReady?.()}
@@ -127,6 +128,14 @@ const useSimulatedPreloader = () => {
     const [progress, setProgress] = useState(0);
 
     useEffect(() => {
+        // Fallback safety: If video takes too long, force load after 6 seconds
+        const safetyTimeout = setTimeout(() => {
+            if (!loaded) {
+                console.warn("Forcing load due to timeout");
+                setLoaded(true);
+            }
+        }, 6000);
+
         const interval = setInterval(() => {
             setProgress((prev) => {
                 if (prev >= 100) {
@@ -137,7 +146,10 @@ const useSimulatedPreloader = () => {
                 return prev + 2;
             });
         }, 30);
-        return () => clearInterval(interval);
+        return () => {
+            clearInterval(interval);
+            clearTimeout(safetyTimeout);
+        };
     }, []);
 
     return { loaded, progress };

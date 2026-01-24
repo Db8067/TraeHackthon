@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import DeviceScroll from './components/landing/DeviceScroll';
@@ -12,18 +12,30 @@ import DeviceSimulator from './pages/DeviceSimulator';
 import PreBook from './pages/PreBook';
 import ThankYou from './pages/ThankYou';
 
+// Custom Hook to detect mobile view
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return isMobile;
+};
+
 const AppRoutes = () => {
+  const isMobile = useIsMobile();
+
   return (
     <Routes>
       <Route path="/" element={
           <div className="w-full">
-              {/* Split Architecture: Mobile vs Desktop */}
-              <div className="md:hidden">
-                  <MobileDeviceScroll />
-              </div>
-              <div className="hidden md:block">
-                  <DeviceScroll />
-              </div>
+              {/* Conditional Rendering: Only mount the relevant component to save resources */}
+              {isMobile ? <MobileDeviceScroll /> : <DeviceScroll />}
           </div>
       } />
       <Route path="/configure" element={<Config />} />
