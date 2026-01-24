@@ -17,6 +17,7 @@ const WatermarkCover: React.FC = () => {
 };
 
 // --- Helper: Playback-Smart Video Layer ---
+// --- Helper: Playback-Smart Video Layer ---
 const VideoLayer = ({
     src,
     opacity,
@@ -24,7 +25,9 @@ const VideoLayer = ({
     className = "",
     forcePlay = false,
     objectPosition = "center",
-    onReady
+    onReady,
+    poster,
+    priority = false // New prop: Disable optimizations for Hero
 }: {
     src: string;
     opacity: MotionValue<number>;
@@ -33,14 +36,17 @@ const VideoLayer = ({
     forcePlay?: boolean;
     objectPosition?: string;
     onReady?: () => void;
+    poster?: string;
+    priority?: boolean;
 }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
 
-    // optimize performance: hide when opacity is 0
-    const display = useTransform(opacity, (v) => v <= 0.01 ? "none" : "block");
+    // optimize performance: hide when opacity is 0 (UNLESS priority is true)
+    const display = priority ? "block" : useTransform(opacity, (v) => v <= 0.01 ? "none" : "block");
 
-    // Smart Play/Pause Logic
+    // Smart Play/Pause Logic (Skip for priority video to prevent interruptions)
     useMotionValueEvent(opacity, "change", (latest) => {
+        if (priority) return; // Always keep priority video ready
         const video = videoRef.current;
         if (!video) return;
 
@@ -76,6 +82,7 @@ const VideoLayer = ({
                 muted
                 loop
                 playsInline
+                poster={poster} // Fallback image
                 // Performance: Signal when enough data is loaded to play
                 onLoadedData={() => onReady?.()}
                 // Fallback: Signal on mount if already cached/ready (rare but possible)
@@ -165,6 +172,8 @@ const MobileDeviceScroll: React.FC = () => {
                         forcePlay={loaded}
                         objectPosition="center"
                         onReady={() => setHeroReady(true)}
+                        poster="/io2/ezgif-frame-001.jpg" // Visual fallback
+                        priority={true} // Force display: block
                     />
 
                     {/* Trans2: Shift Left (25%) */}
