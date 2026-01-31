@@ -1,15 +1,59 @@
 import React, { useState, useEffect } from 'react';
 import { Save, User, Phone, Mail, Heart, AlertCircle, Check } from 'lucide-react';
-import { getContacts, saveContacts } from '../utils/storage';
+import { supabase } from '../utils/supabaseClient';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Config = () => {
-  const [contacts, setContacts] = useState([]);
+  // Initialize with 4 placeholders
+  const [contacts, setContacts] = useState([
+    { id: 'm1', name: '', phone: '', relation: '', email: '', priority: 0 },
+    { id: 'm2', name: '', phone: '', relation: '', email: '', priority: 1 },
+    { id: 'm3', name: '', phone: '', relation: '', email: '', priority: 2 },
+    { id: 'm4', name: '', phone: '', relation: '', email: '', priority: 3 },
+  ]);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
 
+  // Fetch contacts from Supabase on mount
   useEffect(() => {
-    setContacts(getContacts());
+    const fetchContacts = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('contacts')
+                .select('*')
+                .order('priority', { ascending: true });
+            
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+                // Merge DB data into our 4 slots structure
+                const newContacts = [...contacts];
+                data.forEach(dbContact => {
+                    const index = dbContact.priority;
+                    if (index >= 0 && index < 4) {
+                        newContacts[index] = { 
+                            ...newContacts[index], 
+                            ...dbContact, 
+                            // Ensure no nulls for controlled inputs
+                            name: dbContact.name || '',
+                            phone: dbContact.phone || '',
+                            relation: dbContact.relation || '',
+                            email: dbContact.email || '',
+                            id: `m${index+1}` 
+                        };
+                    }
+                });
+                setContacts(newContacts);
+            }
+        } catch (err) {
+            console.error("Error fetching contacts:", err);
+            // Don't block UI, just log error
+        } finally {
+            setLoading(false);
+        }
+    };
+    fetchContacts();
   }, []);
 
   const handleChange = (id, field, value) => {
@@ -18,16 +62,53 @@ const Config = () => {
     setError('');
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     const m1 = contacts.find(c => c.id === 'm1');
     if (!m1 || !m1.name || !m1.phone) {
       setError('Contact M1 (Name & Phone) is compulsory.');
       return;
     }
-    saveContacts(contacts);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    
+    setLoading(true);
+    try {
+        // Upsert logic: Loop through and save non-empty ones
+        for (const contact of contacts) {
+            if (contact.name || contact.phone) {
+                // Prepare payload
+                const payload = {
+                    name: contact.name,
+                    phone: contact.phone,
+                    relation: contact.relation,
+                    priority: contact.priority,
+                    // If we had auth, we'd add user_id here
+                };
+
+                // Check if this priority slot exists to decide Update vs Insert
+                // Simplified: We delete all for this user/session and recreate? 
+                // Or safer: upsert by unique constraint?
+                // For this demo, let's just Upsert based on priority (if we made it unique) 
+                // OR easier: Delete all then Insert all (Not atomic but simple)
+                
+                // Better: Select by priority. If exists, update. Else insert.
+                const { data: existing } = await supabase.from('contacts').select('id').eq('priority', contact.priority).single();
+                
+                if (existing) {
+                     await supabase.from('contacts').update(payload).eq('priority', contact.priority);
+                } else {
+                     await supabase.from('contacts').insert(payload);
+                }
+            }
+        }
+        
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+        console.error("Save failed:", err);
+        setError("Failed to save to cloud. Check network.");
+    } finally {
+        setLoading(false);
+    }
   };
 
   return (

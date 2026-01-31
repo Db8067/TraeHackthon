@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getContacts } from '../utils/storage';
+import { getContacts } from '../utils/storage'; // Fallback
+import { supabase } from '../utils/supabaseClient';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, Flame, Lock, Activity, ShieldAlert, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -9,9 +10,57 @@ const DeviceSimulator = () => {
   const [feedback, setFeedback] = useState(null);
   const navigate = useNavigate();
   const videoRef = useRef(null);
+  const [isFireActive, setIsFireActive] = useState(false);
+
+  // Use Proxy URL (See vite.config.ts)
+  const PROXY_URL = "/api/device";
+
+  // Helper to communicate with ESP32
+  const triggerDevice = async (endpoint) => {
+    try {
+      console.log(`Sending command to device: ${endpoint}`);
+      // Use the proxy URL
+      await fetch(`${PROXY_URL}/${endpoint}`, {
+        method: 'GET',
+      });
+    } catch (error) {
+      console.error("Failed to connect to ESP32:", error);
+      console.log("Make sure the device is on and connected to the same network.");
+    }
+  };
 
   useEffect(() => {
-    setContacts(getContacts());
+    const loadContacts = async () => {
+        // Try Supabase first
+        try {
+            const { data, error } = await supabase
+                .from('contacts')
+                .select('*')
+                .order('priority', { ascending: true });
+            
+            if (error) throw error;
+            
+            if (data && data.length > 0) {
+                // Map to our structure
+                const mapped = [];
+                for(let i=0; i<4; i++) {
+                    const found = data.find(c => c.priority === i);
+                    if (found) mapped[i] = { ...found, id: `m${i+1}` };
+                    else mapped[i] = { id: `m${i+1}`, name: '', phone: '' }; // Empty slot
+                }
+                setContacts(mapped);
+                console.log("Loaded contacts from Supabase:", mapped);
+            } else {
+                // Fallback to local storage if DB empty
+                setContacts(getContacts());
+            }
+        } catch (err) {
+            console.error("Supabase load failed, falling back to local:", err);
+            setContacts(getContacts());
+        }
+    };
+    loadContacts();
+
     startCamera();
     return () => stopCamera();
   }, []);
@@ -57,13 +106,39 @@ const DeviceSimulator = () => {
     setTimeout(() => setFeedback(null), 3000);
   };
 
+    // Simplified Trigger
+    const triggerTwilio = async (type, contact, message) => {
+        const BACKEND_URL = 'http://localhost:3000/api';
+        
+        // Ensure we have a valid number
+        let number = contact?.phone || '+918527296771'; 
+        if (number.match(/^\d{10}$/)) number = `+91${number}`;
+        
+        console.log(`[Frontend] Requesting call to: ${number}`);
+
+        try {
+            // ONLY SEND 'to' - Backend handles 'from'
+            const res = await fetch(`${BACKEND_URL}/call`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ to: number }) 
+            });
+            const data = await res.json();
+            console.log("[Frontend] Response:", data);
+        } catch (e) {
+            console.error("[Frontend] Network Error:", e);
+        }
+    };
+
   const handleMButton = (index) => {
-    const contact = contacts[index]; // contacts is array of 4
-    if (contact && contact.name) {
-      showFeedback(`Calling ${contact.name}...`, <Phone className="w-6 h-6 text-white" />, 'bg-green-600');
-    } else {
-      showFeedback(`M${index + 1} Not Configured`, <Phone className="w-6 h-6 text-white" />, 'bg-slate-600');
-    }
+    const contact = contacts[index] || { name: `M${index+1}`, phone: '' }; 
+    
+    showFeedback(`Calling ${contact.name}...`, <Phone className="w-6 h-6 text-white" />, 'bg-green-600');
+    triggerDevice('call');
+      
+    // Trigger Twilio Alerts
+    const msg = `Emergency! ${contact.name}, please help!`;
+    triggerTwilio('emergency', contact, msg);
   };
 
   const handleThreat = () => {
@@ -71,11 +146,32 @@ const DeviceSimulator = () => {
   };
 
   const handleTheft = () => {
-    showFeedback("Silent Alarm: Alerting Police (911)...", <Lock className="w-6 h-6 text-white" />, 'bg-blue-600');
+    showFeedback("Silent Alarm: Alerting Police...", <Lock className="w-6 h-6 text-white" />, 'bg-blue-600');
+    // Notify all contacts about Theft
+    const msg = "Someone at Home, Check the Camera!";
+    contacts.forEach(contact => {
+        if (contact && contact.phone) triggerTwilio('theft', contact, msg);
+    });
   };
 
   const handleFire = () => {
-    showFeedback("Fire Alert: Dialing Fire Dept...", <Flame className="w-6 h-6 text-white" />, 'bg-orange-600');
+    if (isFireActive) {
+      // If already active, stop it (ACK)
+      showFeedback("Fire Alert Acknowledged. Stopping Alarm.", <ShieldAlert className="w-6 h-6 text-white" />, 'bg-green-600');
+      triggerDevice('stop');
+      setIsFireActive(false);
+    } else {
+      // Start Alarm
+      showFeedback("Fire Alert: Dialing Fire Dept...", <Flame className="w-6 h-6 text-white" />, 'bg-orange-600');
+      triggerDevice('fire');
+      setIsFireActive(true);
+      
+      // Notify all contacts about Fire
+      const msg = "FIRE at home, Run back to Home!";
+      contacts.forEach(contact => {
+        if (contact && contact.phone) triggerTwilio('fire', contact, msg);
+      });
+    }
   };
 
   const handleEarthquake = () => {
