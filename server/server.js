@@ -23,6 +23,7 @@ const API_KEY = process.env.TWILIO_API_KEY;
 const API_SECRET = process.env.TWILIO_API_SECRET;
 const ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const FROM_NUMBER = process.env.TWILIO_PHONE_NUMBER || '+17653965595';
+const WHATSAPP_NUMBER = process.env.TWILIO_WHATSAPP_NUMBER || 'whatsapp:+14155238886';
 
 const app = express();
 app.use(cors());
@@ -34,6 +35,7 @@ console.log("SERVER STARTING - TWILIO CONFIG");
 console.log("Account SID:", ACCOUNT_SID ? "SET" : "MISSING");
 console.log("API Key:    ", API_KEY ? "SET" : "MISSING");
 console.log("From Number:", FROM_NUMBER);
+console.log("WA Number:  ", WHATSAPP_NUMBER);
 console.log("-------------------------------------------");
 
 let client;
@@ -72,6 +74,37 @@ app.post('/api/call', async (req, res) => {
         res.json({ success: true, sid: call.sid });
     } catch (err) {
         console.error("CRITICAL TWILIO ERROR:", err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.post('/api/whatsapp', async (req, res) => {
+    console.log("\n[INCOMING REQUEST] /api/whatsapp");
+    const { to, message } = req.body;
+
+    if (!to || !message) {
+        return res.status(400).json({ error: "Missing 'to' or 'message'" });
+    }
+
+    if (!client) {
+        return res.status(500).json({ error: "Server misconfigured" });
+    }
+
+    try {
+        // Ensure 'to' is formatted for WhatsApp
+        const formattedTo = to.startsWith('whatsapp:') ? to : `whatsapp:${to}`;
+        console.log(`Attempting WhatsApp -> To: ${formattedTo}, Msg: "${message}"`);
+        
+        const msg = await client.messages.create({
+            body: message,
+            from: WHATSAPP_NUMBER,
+            to: formattedTo
+        });
+        
+        console.log(`SUCCESS! WhatsApp SID: ${msg.sid}`);
+        res.json({ success: true, sid: msg.sid });
+    } catch (err) {
+        console.error("CRITICAL WHATSAPP ERROR:", err);
         res.status(500).json({ success: false, error: err.message });
     }
 });

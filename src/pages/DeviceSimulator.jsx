@@ -114,65 +114,77 @@ const DeviceSimulator = () => {
         let number = contact?.phone || '+918527296771'; 
         if (number.match(/^\d{10}$/)) number = `+91${number}`;
         
-        console.log(`[Frontend] Requesting call to: ${number}`);
+        console.log(`[Frontend] Requesting Call & WhatsApp to: ${number}`);
 
-        try {
-            // ONLY SEND 'to' - Backend handles 'from'
-            const res = await fetch(`${BACKEND_URL}/call`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ to: number }) 
-            });
-            const data = await res.json();
-            console.log("[Frontend] Response:", data);
-        } catch (e) {
-            console.error("[Frontend] Network Error:", e);
+        // 1. TRIGGER CALL
+        fetch(`${BACKEND_URL}/call`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ to: number }) 
+        }).catch(e => console.error("Call Error:", e));
+
+        // 2. TRIGGER WHATSAPP (Parallel)
+        fetch(`${BACKEND_URL}/whatsapp`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ to: number, message: message }) 
+        }).catch(e => console.error("WhatsApp Error:", e));
+    };
+
+    const handleMButton = (index) => {
+        const contact = contacts[index] || { name: `M${index+1}`, phone: '' }; 
+        showFeedback(`Calling ${contact.name}...`, <Phone className="w-6 h-6 text-white" />, 'bg-green-600');
+        triggerDevice('call');
+        
+        // Custom Message for M-Buttons
+        const msg = "Emergency at home, get back to home";
+        triggerTwilio('emergency', contact, msg);
+    };
+
+    const handleThreat = () => {
+        showFeedback("Threat Alert! Notifying M1...", <Activity className="w-6 h-6 text-white" />, 'bg-red-800');
+        navigate('/threat'); // Keep navigation
+        
+        // Notify ONLY M1 (Index 0)
+        const contactM1 = contacts[0];
+        if (contactM1 && contactM1.phone) {
+             const msg = "Someone at home... Watch the CCTV";
+             triggerTwilio('threat', contactM1, msg);
+        } else {
+             console.warn("M1 Contact not configured for Threat Alert");
         }
     };
 
-  const handleMButton = (index) => {
-    const contact = contacts[index] || { name: `M${index+1}`, phone: '' }; 
-    
-    showFeedback(`Calling ${contact.name}...`, <Phone className="w-6 h-6 text-white" />, 'bg-green-600');
-    triggerDevice('call');
-      
-    // Trigger Twilio Alerts
-    const msg = `Emergency! ${contact.name}, please help!`;
-    triggerTwilio('emergency', contact, msg);
-  };
+    const handleTheft = () => {
+        showFeedback("Silent Alarm: Alerting M1 & Police...", <Lock className="w-6 h-6 text-white" />, 'bg-blue-600');
+        
+        // Notify ONLY M1 (Index 0)
+        const contactM1 = contacts[0];
+        if (contactM1 && contactM1.phone) {
+            const msg = "Someone at home... Watch the CCTV";
+            triggerTwilio('theft', contactM1, msg);
+        } else {
+             console.warn("M1 Contact not configured for Theft Alert");
+        }
+    };
 
-  const handleThreat = () => {
-    navigate('/threat');
-  };
-
-  const handleTheft = () => {
-    showFeedback("Silent Alarm: Alerting Police...", <Lock className="w-6 h-6 text-white" />, 'bg-blue-600');
-    // Notify all contacts about Theft
-    const msg = "Someone at Home, Check the Camera!";
-    contacts.forEach(contact => {
-        if (contact && contact.phone) triggerTwilio('theft', contact, msg);
-    });
-  };
-
-  const handleFire = () => {
-    if (isFireActive) {
-      // If already active, stop it (ACK)
-      showFeedback("Fire Alert Acknowledged. Stopping Alarm.", <ShieldAlert className="w-6 h-6 text-white" />, 'bg-green-600');
-      triggerDevice('stop');
-      setIsFireActive(false);
-    } else {
-      // Start Alarm
-      showFeedback("Fire Alert: Dialing Fire Dept...", <Flame className="w-6 h-6 text-white" />, 'bg-orange-600');
-      triggerDevice('fire');
-      setIsFireActive(true);
-      
-      // Notify all contacts about Fire
-      const msg = "FIRE at home, Run back to Home!";
-      contacts.forEach(contact => {
-        if (contact && contact.phone) triggerTwilio('fire', contact, msg);
-      });
-    }
-  };
+    const handleFire = () => {
+        if (isFireActive) {
+            showFeedback("Fire Alert Acknowledged. Stopping Alarm.", <ShieldAlert className="w-6 h-6 text-white" />, 'bg-green-600');
+            triggerDevice('stop');
+            setIsFireActive(false);
+        } else {
+            showFeedback("Fire Alert: Dialing Fire Dept...", <Flame className="w-6 h-6 text-white" />, 'bg-orange-600');
+            triggerDevice('fire');
+            setIsFireActive(true);
+            
+            // Notify all contacts about Fire
+            const msg = "Fire, Get back home Immediately";
+            contacts.forEach(contact => {
+                if (contact && contact.phone) triggerTwilio('fire', contact, msg);
+            });
+        }
+    };
 
   const handleEarthquake = () => {
     navigate('/earthquake');
