@@ -108,7 +108,8 @@ const DeviceSimulator = () => {
 
     // Simplified Trigger
     const triggerTwilio = async (type, contact, message) => {
-        const BACKEND_URL = 'http://localhost:3000/api';
+        // Dynamic Backend URL for Production vs Localhost
+        const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api';
         
         // Ensure we have a valid number
         let number = contact?.phone || '+918527296771'; 
